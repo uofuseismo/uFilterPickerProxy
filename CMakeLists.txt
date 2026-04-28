@@ -34,8 +34,11 @@ endif()
 find_package(spdlog REQUIRED)
 find_package(Boost COMPONENTS headers program_options REQUIRED)
 find_package(Threads REQUIRED)
-find_package(TBB COMPONENTS tbb REQUIRED)
+#find_package(TBB COMPONENTS tbb REQUIRED)
 find_package(SQLite3 REQUIRED)
+if(NOT TARGET SQLite3::SQLite3) # CMake < 4.3
+  add_library(SQLite3::SQLite3 ALIAS SQLite::SQLite3)
+endif()
 if (${BUILD_TESTS})
    find_package(Catch2 3 REQUIRED)
 endif()
@@ -163,8 +166,7 @@ target_link_libraries(uFilterPickerProxy
                       PRIVATE uFilterPickerProxy::libuFilterPickerProxy
                               spdlog::spdlog_header_only
                               protobuf::libprotobuf gRPC::grpc gRPC::grpc++
-                              Boost::headers Boost::program_options
-                              TBB::tbb)
+                              Boost::headers Boost::program_options)
 #target_sources(uFilterPickerProxy
 #               #PUBLIC FILE_SET HEADERS
 #               #       BASE_DIRS
@@ -195,40 +197,39 @@ target_link_libraries(uFilterPickerProxy
 
 
 if (PROJECT_IS_TOP_LEVEL AND ${BUILD_TESTS})
-   #add_executable(unitTests
+   add_executable(unitTests
+                  testing/database.cpp
    #               testing/utilities.cpp
    #               testing/picker.cpp
    #               testing/grpc.cpp
-   #               uFilterPickerProxyAPI/v1/stream_identifier.proto
-   #               uFilterPickerProxyAPI/v1/phase_hint.proto
-   #               uFilterPickerProxyAPI/v1/pick.proto
-   #)
-   #set_target_properties(unitTests PROPERTIES
-   #                      CXX_STANDARD 23
-   #                      CXX_STANDARD_REQUIRED YES 
-   #                      CXX_EXTENSIONS NO) 
-   #target_link_libraries(unitTests
-   #                      PUBLIC
-   #                         TBB::tbb
-   #                      PRIVATE 
-   #                         uFilterPickerProxy::libuFilterPickerProxy
-   #                         spdlog::spdlog_header_only
-   #                         gRPC::grpc gRPC::grpc++
-   #                         Threads::Threads TBB::tbb
-   #                         Catch2::Catch2 Catch2::Catch2WithMain)
-   #target_include_directories(unitTests
-   #                           PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
-   #add_test(NAME unitTests
-   #         COMMAND $<TARGET_FILE:unitTests>) 
-   #protobuf_generate(TARGET unitTests
-   #                  LANGUAGE cpp 
-   #                  )   
-   #protobuf_generate(TARGET unitTests
-   #                  LANGUAGE grpc
-   #                  PLUGIN "protoc-gen-grpc=$<TARGET_FILE:gRPC::grpc_cpp_plugin>"
-   #                  PLUGIN_OPTIONS generate_mock_code=true
-   #                  GENERATE_EXTENSIONS .grpc.pb.h .grpc.pb.cc
-   #                 )   
+                  uFilterPickerProxyAPI/v1/stream_identifier.proto
+                  uFilterPickerProxyAPI/v1/phase_hint.proto
+                  uFilterPickerProxyAPI/v1/pick.proto
+   )
+   set_target_properties(unitTests PROPERTIES
+                         CXX_STANDARD 23
+                         CXX_STANDARD_REQUIRED YES 
+                         CXX_EXTENSIONS NO) 
+   target_link_libraries(unitTests
+                         PRIVATE 
+                            uFilterPickerProxy::libuFilterPickerProxy
+                            spdlog::spdlog_header_only
+                            gRPC::grpc gRPC::grpc++
+                            Threads::Threads
+                            Catch2::Catch2 Catch2::Catch2WithMain)
+   target_include_directories(unitTests
+                              PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
+   add_test(NAME unitTests
+            COMMAND $<TARGET_FILE:unitTests>) 
+   protobuf_generate(TARGET unitTests
+                     LANGUAGE cpp 
+                     )   
+   protobuf_generate(TARGET unitTests
+                     LANGUAGE grpc
+                     PLUGIN "protoc-gen-grpc=$<TARGET_FILE:gRPC::grpc_cpp_plugin>"
+                     PLUGIN_OPTIONS generate_mock_code=true
+                     GENERATE_EXTENSIONS .grpc.pb.h .grpc.pb.cc
+                    )   
 endif()
 
 
@@ -297,7 +298,7 @@ set(CPACK_PACKAGE_NAME ${PROJECT_NAME})
 set(CPACK_PACKAGE_VENDOR "UUSS")
 set(CPACK_PACKAGE_CONTACT "ben.baker@utah.edu")
 set(CPACK_PACKAGE_LICENSE "MIT")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Implementation of a Lomax style filter picker for the UUSS Kubernetes environment.")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A stateful proxy to which instances of the uFilterPicker can submit their picks in the UUSS Kubernetes environment.")
 set(CPACK_PACKAGE_INSTALL_DIRECTORY ${CPACK_PACKAGE_NAME})
 set(CPACK_VERBATIM_VARIABLES YES)
 set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
