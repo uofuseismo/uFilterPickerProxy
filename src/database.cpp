@@ -117,9 +117,9 @@ public:
                 if (std::filesystem::exists(fileName))
                 {
                     std::filesystem::remove(fileName);
-                    //SPDLOG_LOGGER_WARN(mLogger,
-                    //                   "Removing existing database {}",
-                    //                   std::string{fileName});
+                    SPDLOG_LOGGER_WARN(mLogger,
+                                       "Removing existing database {}",
+                                       std::string{fileName});
                 }
                 const auto directory = fileName.parent_path();
                 if (!directory.empty())
@@ -153,9 +153,9 @@ public:
                             }   
                         }   
                     }
-                    //SPDLOG_LOGGER_INFO(mLogger,
-                    //                   "Will create missing database {}",
-                    //                   std::string{fileName});
+                    SPDLOG_LOGGER_INFO(mLogger,
+                                       "Will create missing database {}",
+                                       std::string{fileName});
                 }
             }
             openReadWrite(fileName, createDatabase);
