@@ -22,6 +22,7 @@
 #include <uFilterPickerProxyAPI/v1/pick.pb.h>
 #include <uFilterPickerProxyAPI/v1/stream_identifier.pb.h>
 #include <uFilterPickerProxyAPI/v1/phase_hint.pb.h>
+#include <uFilterPickerProxyAPI/v1/algorithm.pb.h>
 #include "uFilterPickerProxy/database.hpp"
 #include "uFilterPickerProxy/exception.hpp"
 
@@ -31,6 +32,29 @@ using namespace UFilterPickerProxy;
 
 namespace
 {
+
+void bindText(const std::string &text,
+              const int index,
+              const std::string &column,
+              const std::string &table,
+              sqlite3_stmt *statement)
+{
+#ifndef NDEBUG
+    assert(index > 0);
+#endif
+    auto returnCode
+        = sqlite3_bind_text(
+             statement, index,
+             text.c_str(), static_cast<int> (text.size()), nullptr);
+    if (returnCode != SQLITE_OK)
+    {
+        sqlite3_finalize(statement);
+        throw std::runtime_error("Failed to bind " 
+                               + text + " to " 
+                               + column + " " + table);
+    }
+}
+
 std::string removeBlanksAndCapitalize(const std::string &stringIn)
 {
     auto string = stringIn; 
@@ -44,6 +68,21 @@ std::string removeBlanksAndCapitalize(const std::string &stringIn)
     std::transform(string.begin(), string.end(), string.begin(), ::toupper);
     return string;
 }
+
+std::string removeBlanksAndLowerCase(const std::string &stringIn)
+{
+    auto string = stringIn; 
+    string.erase(
+        std::remove_if(string.begin(), string.end(), ::isspace),
+        string.end());
+    if (string.empty())
+    {   
+        throw std::invalid_argument("Algorithm has empty field");
+    }   
+    std::transform(string.begin(), string.end(), string.begin(), ::tolower);
+    return string;
+}
+
 }
 
 class Database::DatabaseImpl
@@ -296,8 +335,10 @@ R"""(
 CREATE TABLE algorithms(
    identifier INTEGER PRIMARY KEY ASC,
    name TEXT NOT NULL DEFAULT('uFilterPicker'),
-   version TEXT NOT NULL
-   tag TEXT);
+   version TEXT NOT NULL,
+   tag TEXT DEFAULT(''),
+   UNIQUE(name, version, tag)
+   );
 )"""
         };  
         returnCode = sqlite3_exec(mDatabaseHandle,
@@ -343,6 +384,7 @@ CREATE TABLE picks(
         mTablesInitialized = true;
     }
 
+    /// @result The stream identifier
     [[nodiscard]] int getStreamIdentifier(
         const UFilterPickerProxyAPI::V1::StreamIdentifier &identifier)
     {
@@ -384,6 +426,15 @@ INSERT INTO streams(network, station, channel, location_code) VALUES(?, ?, ?, ?)
             throw std::runtime_error("Failed to prepare insert statement");
         }
 
+        ::bindText(network,      1, "network",
+                   "streams", insertStatement);
+        ::bindText(station,      2, "station",
+                   "streams", insertStatement);
+        ::bindText(channel,      3, "channel",
+                   "streams", insertStatement);
+        ::bindText(locationCode, 4, "location_code",
+                   "streams", insertStatement);
+/*
         std::array<std::pair<std::string, std::string>, 4>
             insertMap
             {
@@ -392,10 +443,10 @@ INSERT INTO streams(network, station, channel, location_code) VALUES(?, ?, ?, ?)
                 std::pair<std::string, std::string> {"channel", channel},
                 std::pair<std::string, std::string> {"locationCode", locationCode}
             };
-        for (size_t i = 0; i < insertMap.size(); ++i)
+        for (size_t i = 1; i < insertMap.size(); ++i)
         {
             const auto index = static_cast<int> (i + 1);
-            const auto element = insertMap.at(i);
+            const auto element = insertMap[i];
             returnCode = sqlite3_bind_text(
                 insertStatement,
                 index,
@@ -408,6 +459,7 @@ INSERT INTO streams(network, station, channel, location_code) VALUES(?, ?, ?, ?)
                 throw std::runtime_error("Failed to bind " + element.first);
             }
         }
+*/
         // Send it
         returnCode = sqlite3_step(insertStatement);
         // Try to get the corresponding identifier
@@ -433,6 +485,97 @@ INSERT INTO streams(network, station, channel, location_code) VALUES(?, ?, ?, ?)
         return streamIdentifier;
     }
 
+    /// @result The algorithm identifier
+    [[nodiscard]] int getAlgorithmIdentifier(
+        const UFilterPickerProxyAPI::V1::Algorithm &algorithm)
+    {   
+        int algorithmIdentifier{-1};
+        const auto name = ::removeBlanksAndLowerCase(algorithm.name());
+        const auto version = ::removeBlanksAndLowerCase(algorithm.version());
+        std::string tag;
+        if (algorithm.has_tag())
+        {
+            tag = algorithm.tag();
+            if (!tag.empty()){tag = ::removeBlanksAndLowerCase(tag);}
+        }
+        const auto keyName = name + " " 
+                           + version
+                           + (!tag.empty() ? " " + tag : "");
+        {
+        const std::lock_guard<std::mutex> lock(mMutex);
+        auto idx = mAlgorithmIdentifiersMap.find(keyName);
+        if (idx != mAlgorithmIdentifiersMap.end())
+        {
+            return idx->second;
+        }
+        SPDLOG_LOGGER_INFO(mLogger, "Will add {} to algorithms", keyName);
+        const std::string insertSQL{
+R"""(
+INSERT INTO algorithms(name, version, tag) VALUES(?, ?, ?) RETURNING identifier;
+)"""
+        };
+        sqlite3_stmt *insertStatement{nullptr};
+        auto returnCode = sqlite3_prepare_v2(mDatabaseHandle,
+                                             insertSQL.c_str(),
+                                             -1,
+                                             &insertStatement,
+                                             nullptr);
+        if (returnCode != SQLITE_OK)
+        {
+            sqlite3_finalize(insertStatement);
+            throw std::runtime_error(
+                "Failed to prepare algorithm insert statement");
+        }
+        ::bindText(name,    1, "name",    "algorithms", insertStatement);
+        ::bindText(version, 2, "version", "algorithms", insertStatement);
+        ::bindText(tag,     3, "tag",     "algorithms", insertStatement);
+/*
+        std::array<std::pair<std::string, std::string>, 3>
+            insertMap
+            {
+                std::pair<std::string, std::string> {"name", name},
+                std::pair<std::string, std::string> {"version", version},
+                std::pair<std::string, std::string> {"tag", tag}
+            };
+        for (size_t i = 0; i < insertMap.size(); ++i)
+        {
+            const auto index = static_cast<int> (i + 1);
+            const auto element = insertMap.at(i);
+            returnCode = sqlite3_bind_text(
+                insertStatement,
+                index,
+                element.second.c_str(),
+                static_cast<int> (element.second.size()),
+                nullptr);
+            if (returnCode != SQLITE_OK)
+            {
+                sqlite3_finalize(insertStatement); 
+                throw std::runtime_error("Failed to bind " + element.first);
+            }
+        }
+*/
+        // Send it 
+        returnCode = sqlite3_step(insertStatement);
+        // Try to get the corresponding identifier
+        if (returnCode == SQLITE_ROW)
+        {
+            algorithmIdentifier = sqlite3_column_int(insertStatement, 0);
+            SPDLOG_LOGGER_DEBUG(mLogger,
+                                "Got algorithm identifier {} from db",
+                                std::to_string(streamIdentifier));
+        }
+        if (sqlite3_step(insertStatement) != SQLITE_DONE)
+        {
+            SPDLOG_LOGGER_WARN(mLogger,
+                               "There exists more rows but terminating early");
+        }
+        mAlgorithmIdentifiersMap.insert(
+           std::pair{keyName, algorithmIdentifier});
+        } // Release mutex
+        return algorithmIdentifier;
+    }
+
+    /// @brief Attempts to add the pick to the database
     void add(const UFilterPickerProxyAPI::V1::Pick &pick)
     {
         // Tabulate variables
@@ -441,16 +584,23 @@ INSERT INTO streams(network, station, channel, location_code) VALUES(?, ?, ?, ?)
         {
             throw std::runtime_error("Failed to get stream identifier");
         }
+        auto algorithmIdentifier = getAlgorithmIdentifier(pick.algorithm());
+        if (algorithmIdentifier ==-1)
+        {
+            throw std::runtime_error("Failed to get algorithm identifier");
+        }
         auto phaseHintIdentifier = getPhaseHintIdentifier(pick.phase_hint());
         const int64_t time
             = google::protobuf::util::TimeUtil::TimestampToNanoseconds(
                  pick.time());
+/*
         const std::string algorithm 
             = (pick.has_algorithm() ? pick.algorithm() : "uFilterPicker");
+*/
 //ON CONFLICT DO NOTHING
         const std::string insertSQL{
 R"""(
-INSERT INTO picks(stream, time, phase_hint) VALUES(?, ?, ?);
+INSERT INTO picks(stream, time, phase_hint, algorithm) VALUES(?, ?, ?, ?);
 )"""
         };
         // Insert it
@@ -480,14 +630,12 @@ INSERT INTO picks(stream, time, phase_hint) VALUES(?, ?, ?);
             sqlite3_finalize(insertStatement);
             throw std::runtime_error("Failed to bind phase hint");
         }
-/*
-        returnCode = sqlite3_bind_text(insertStatement, 1, pick, nullptr);
+        returnCode = sqlite3_bind_int(insertStatement, 4, algorithmIdentifier);
         if (returnCode != SQLITE_OK)
         {
             sqlite3_finalize(insertStatement);
-            throw std::runtime_error("Failed to bind time");
+            throw std::runtime_error("Failed to bind algorithm");
         }
-*/
         // Send it
         returnCode = sqlite3_step(insertStatement);
         SPDLOG_LOGGER_INFO(mLogger, "rc {}", returnCode);
@@ -500,11 +648,13 @@ INSERT INTO picks(stream, time, phase_hint) VALUES(?, ?, ?);
         }
     }
 
+    /// @result True indicates this is a read-only database
     [[nodiscard]] bool isReadOnly() const noexcept
     {
         return mMode == Database::Mode::ReadOnly;
     }
 
+    /// @result Gets the currently available streams
     [[nodiscard]] std::set<std::string> getStreams() const
     {
         std::set<std::string> result;
@@ -518,6 +668,7 @@ INSERT INTO picks(stream, time, phase_hint) VALUES(?, ?, ?);
         return result;
     } 
 
+    /// @Result Gets the phase hint identifier
     [[nodiscard]] 
     int getPhaseHintIdentifier(
         const UFilterPickerProxyAPI::V1::PhaseHint phaseHint) const
@@ -580,12 +731,6 @@ INSERT INTO picks(stream, time, phase_hint) VALUES(?, ?, ?);
             throw std::runtime_error("Expecting 3 phase hints");
         }
     }
-/*
-    [[nodiscard]] int getPhaseHintIdentifier()
-    {
-
-    }
-*/
 
     ~DatabaseImpl()
     {
@@ -597,6 +742,7 @@ INSERT INTO picks(stream, time, phase_hint) VALUES(?, ?, ?);
     sqlite3 *mDatabaseHandle{nullptr};
     std::map<std::string, int> mStreamIdentifiersMap;
     std::map<std::string, int> mPhaseHintMap;
+    std::map<std::string, int> mAlgorithmIdentifiersMap;
     Database::Mode mMode{Database::Mode::ReadOnly};
     bool mIsOpen{false}; 
     bool mTablesInitialized{false};
@@ -650,6 +796,15 @@ void Database::add(const UFilterPickerProxyAPI::V1::Pick &pick)
     if (isReadOnly())
     {
         throw std::invalid_argument("Cannot add pick to read-only database");
+    }
+    const auto &algorithmIdentifier = pick.algorithm();
+    if (!algorithmIdentifier.has_name())
+    {
+        throw std::invalid_argument("Algorithm name not set");
+    }
+    if (!algorithmIdentifier.has_version())
+    {
+        throw std::invalid_argument("Algorithm version not set");
     }
     pImpl->add(pick);
 }
