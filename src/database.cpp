@@ -562,13 +562,18 @@ INSERT INTO algorithms(name, version, tag) VALUES(?, ?, ?) RETURNING identifier;
             algorithmIdentifier = sqlite3_column_int(insertStatement, 0);
             SPDLOG_LOGGER_DEBUG(mLogger,
                                 "Got algorithm identifier {} from db",
-                                std::to_string(streamIdentifier));
+                                std::to_string(algorithmIdentifier));
         }
         if (sqlite3_step(insertStatement) != SQLITE_DONE)
         {
             SPDLOG_LOGGER_WARN(mLogger,
                                "There exists more rows but terminating early");
         }
+        // Clean up
+        if (sqlite3_finalize(insertStatement) != SQLITE_OK)
+        {                      
+            throw std::runtime_error("Failed to algorithm insert statement");
+        }   
         mAlgorithmIdentifiersMap.insert(
            std::pair{keyName, algorithmIdentifier});
         } // Release mutex
