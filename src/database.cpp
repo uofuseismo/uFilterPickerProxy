@@ -442,7 +442,7 @@ CREATE TABLE picks(
 
     /// @result The stream identifier
     [[nodiscard]] int getStreamIdentifier(
-        const UFilterPickerProxyAPI::V1::StreamIdentifier &identifier)
+        const UFilterPickerProxyAPI::V1::StreamIdentifier &identifier) const
     {
         int streamIdentifier{-1};
         const auto network = ::removeBlanksAndCapitalize(identifier.network());
@@ -471,7 +471,7 @@ INSERT INTO streams(network, station, channel, location_code)
             VALUES(?, ?, ?, ?) RETURNING identifier;
 )"""
         };
-	sqlite3_stmt *insertStatement{nullptr};
+	    sqlite3_stmt *insertStatement{nullptr};
         auto returnCode = sqlite3_prepare_v2(mDatabaseHandle,
                                              insertSQL.c_str(),
                                              -1,
@@ -518,7 +518,7 @@ INSERT INTO streams(network, station, channel, location_code)
 
     /// @result The algorithm identifier
     [[nodiscard]] int getAlgorithmIdentifier(
-        const UFilterPickerProxyAPI::V1::Algorithm &algorithm)
+        const UFilterPickerProxyAPI::V1::Algorithm &algorithm) const
     {   
         int algorithmIdentifier{-1};
         const auto name = ::removeBlanksAndLowerCase(algorithm.name());
@@ -611,16 +611,82 @@ INSERT INTO algorithms(name, version, tag) VALUES(?, ?, ?) RETURNING identifier;
         return algorithmIdentifier;
     }
 
-    /// @brief Attempts to add the pick to the database
-    void add(const UFilterPickerProxyAPI::V1::Pick &pick)
+    /// @result True indicates the pick exists
+    [[nodiscard]] bool pickExists(const UFilterPickerProxyAPI::V1::Pick &pick) const
     {
-        // Tabulate variables
-        auto streamIdentifier = getStreamIdentifier(pick.stream_identifier());
+        const auto streamIdentifier = getStreamIdentifier(pick.stream_identifier());
         if (streamIdentifier ==-1)
         {
             throw std::runtime_error("Failed to get stream identifier");
         }
-        auto algorithmIdentifier = getAlgorithmIdentifier(pick.algorithm());
+        const auto algorithmIdentifier = getAlgorithmIdentifier(pick.algorithm());
+        if (algorithmIdentifier ==-1)
+        {
+            throw std::runtime_error("Failed to get algorithm identifier");
+        }
+        const auto phaseHintIdentifier = getPhaseHintIdentifier(pick.phase_hint());
+        const int64_t time
+            = google::protobuf::util::TimeUtil::TimestampToNanoseconds(
+                 pick.time());
+        return pickExists(streamIdentifier, time, 
+                          phaseHintIdentifier, algorithmIdentifier);
+    }
+
+    /// @brief  @result True indicates the pick exists.
+    [[nodiscard]] bool pickExists(const int streamIdentifier,
+                                  const int64_t time,
+                                  const int phaseHintIdentifier,
+                                  const int algorithmIdentifier) const
+    {
+        bool exists{false};
+        const std::string querySQL{
+R"""(
+SELECT COUNT(*) FROM picks WHERE stream = ? AND time = ? AND phase_hint = ? AND algorithm = ?;)
+)"""
+        };
+        const std::lock_guard<std::mutex> lock(mMutex);
+        {
+        sqlite3_stmt *queryStatement{nullptr};
+        auto returnCode = sqlite3_prepare_v2(mDatabaseHandle,
+                                             querySQL.c_str(),
+                                             -1,
+                                             &queryStatement,
+                                             nullptr);
+        if (returnCode != SQLITE_OK)
+        {
+          sqlite3_finalize(queryStatement);
+          throw std::runtime_error("Failed to prepare pick exists query statement");
+        }
+        ::bindInt(streamIdentifier, 1, "stream", "pick", queryStatement);
+        ::bindInt64(time, 2, "time", "pick", queryStatement);
+        ::bindInt(phaseHintIdentifier, 3, "phase_hint", "pick", queryStatement);
+        ::bindInt(algorithmIdentifier, 4, "algorithm", "pick", queryStatement);
+
+        returnCode = sqlite3_step(queryStatement);
+        if (returnCode != SQLITE_ROW)
+        {
+            sqlite3_finalize(queryStatement);
+            return false;
+        }
+        exists = sqlite3_column_int(queryStatement, 0) > 0 ? true : false;
+        if (sqlite3_finalize(queryStatement) != SQLITE_OK)
+        {
+            throw std::runtime_error("Failed to finalize pick exists query statement");   
+        }
+        } // End mutex scope
+        return exists;
+    }
+
+    /// @brief Attempts to add the pick to the database
+    void add(const UFilterPickerProxyAPI::V1::Pick &pick)
+    {
+        // Tabulate variables
+        const auto streamIdentifier = getStreamIdentifier(pick.stream_identifier());
+        if (streamIdentifier ==-1)
+        {
+            throw std::runtime_error("Failed to get stream identifier");
+        }
+        const auto algorithmIdentifier = getAlgorithmIdentifier(pick.algorithm());
         if (algorithmIdentifier ==-1)
         {
             throw std::runtime_error("Failed to get algorithm identifier");
@@ -634,10 +700,16 @@ INSERT INTO algorithms(name, version, tag) VALUES(?, ?, ?) RETURNING identifier;
         {
             throw std::runtime_error("Failed to serialize pick proto"); 
         } 
-/*
-        const std::string algorithm 
-            = (pick.has_algorithm() ? pick.algorithm() : "uFilterPicker");
-*/
+        // Check if it already exists
+        if (pickExists(streamIdentifier, time, phaseHintIdentifier, algorithmIdentifier))
+        {
+            throw DuplicatePickException(
+                "Pick already exists in database for stream identifier "
+              + std::to_string(streamIdentifier) + " time " 
+              + std::to_string(time) + " phase hint identifier "
+              + std::to_string(phaseHintIdentifier) + " algorithm identifier "
+              + std::to_string(algorithmIdentifier));
+        }
 //ON CONFLICT DO NOTHING
         const std::string insertSQL{
 R"""(
@@ -645,7 +717,7 @@ INSERT INTO picks(stream, time, phase_hint, algorithm, proto) VALUES(?, ?, ?, ?,
 )"""
         };
         // Insert it
-       
+        const std::lock_guard<std::mutex> lock(mMutex);
         {
 
         sqlite3_stmt *insertStatement{nullptr};
@@ -661,67 +733,28 @@ INSERT INTO picks(stream, time, phase_hint, algorithm, proto) VALUES(?, ?, ?, ?,
         }
         ::bindInt(streamIdentifier, 1,
           "stream", "pick", insertStatement);
-        /*
-        returnCode = sqlite3_bind_int(insertStatement, 1, streamIdentifier);
-        if (returnCode != SQLITE_OK)
-        {
-            sqlite3_finalize(insertStatement);
-            throw std::runtime_error("Failed to bind stream identifier");
-        }
-        */
         ::bindInt64(time, 2,
           "time", "pick", insertStatement);
-        /*
-        returnCode = sqlite3_bind_int64(insertStatement, 2, time);
-        if (returnCode != SQLITE_OK)
-        {
-            sqlite3_finalize(insertStatement);
-            throw std::runtime_error("Failed to bind time");
-        }
-        */
         ::bindInt(phaseHintIdentifier, 3,
           "phase_hint", "pick", insertStatement);
-        /*
-        returnCode = sqlite3_bind_int(insertStatement, 3, phaseHintIdentifier);
-        if (returnCode != SQLITE_OK)
-        {
-            sqlite3_finalize(insertStatement);
-            throw std::runtime_error("Failed to bind phase hint");
-        }
-        */
         ::bindInt(algorithmIdentifier, 4,
             "algorithm_identifier", "pick", insertStatement);
-        /*
-        returnCode = sqlite3_bind_int(insertStatement, 4, algorithmIdentifier);
-        if (returnCode != SQLITE_OK)
-        {
-            sqlite3_finalize(insertStatement);
-            throw std::runtime_error("Failed to bind algorithm");
-        }
-        */
         ::bindBlob(pickProto.data(), 5,
-          "proto", "pick", insertStatement);
-        /*
-        returnCode = sqlite3_bind_blob(insertStatement, 5,
-                                       pickProto.data(),
-                                       static_cast<int> (pickProto.size()),
-                                       nullptr);
-        if (returnCode != SQLITE_OK)
-        {
-            sqlite3_finalize(insertStatement);
-            throw std::runtime_error("Failed to bind proto");
-        }
-        */
+            "proto", "pick", insertStatement);
         // Send it
         returnCode = sqlite3_step(insertStatement);
-        SPDLOG_LOGGER_INFO(mLogger, "rc {}", returnCode);
+        if (returnCode != SQLITE_DONE)
+        {
+            sqlite3_finalize(insertStatement);
+            throw std::runtime_error("Failed to insert pick into database");
+        }
         // Clean up
         if (sqlite3_finalize(insertStatement) != SQLITE_OK)
         {
             throw std::runtime_error("Failed to finalize insert statement");
         }
 
-        }
+        } // End mutex scope
     }
 
     /// @result True indicates this is a read-only database
@@ -774,10 +807,10 @@ INSERT INTO picks(stream, time, phase_hint, algorithm, proto) VALUES(?, ?, ?, ?,
         if (!isOpen()){throw std::runtime_error("Database not open");} 
         const std::string phaseHintQuery{
             "SELECT identifier, phase FROM phase_hints"};
-	sqlite3_stmt *statement{nullptr};
+	    sqlite3_stmt *statement{nullptr};
         {
         const std::lock_guard<std::mutex> lock(mMutex);
-	auto returnCode
+	    auto returnCode
             = sqlite3_prepare_v2(mDatabaseHandle, 
                                  phaseHintQuery.c_str(),
                                  -1, &statement, nullptr);
@@ -816,9 +849,9 @@ INSERT INTO picks(stream, time, phase_hint, algorithm, proto) VALUES(?, ?, ?, ?,
     std::shared_ptr<spdlog::logger> mLogger{nullptr};
     mutable std::mutex mMutex;
     sqlite3 *mDatabaseHandle{nullptr};
-    std::map<std::string, int> mStreamIdentifiersMap;
+    mutable std::map<std::string, int> mStreamIdentifiersMap;
     std::map<std::string, int> mPhaseHintMap;
-    std::map<std::string, int> mAlgorithmIdentifiersMap;
+    mutable std::map<std::string, int> mAlgorithmIdentifiersMap;
     Database::Mode mMode{Database::Mode::ReadOnly};
     bool mIsOpen{false}; 
     bool mTablesInitialized{false};

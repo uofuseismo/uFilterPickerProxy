@@ -1,2 +1,5 @@
 version.hpp
 CMakeUserPresets.json
+*.sqlite3
+.idea
+.vscode

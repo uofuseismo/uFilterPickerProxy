@@ -17,6 +17,7 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <google/protobuf/util/time_util.h>
 #include "uFilterPickerProxy/database.hpp"
+//#include "uFilterPickerProxy/exception.hpp"
 #include <uFilterPickerProxyAPI/v1/pick.pb.h>
 #include <uFilterPickerProxyAPI/v1/phase_hint.pb.h>
 #include <uFilterPickerProxyAPI/v1/stream_identifier.pb.h>
@@ -65,7 +66,9 @@ TEST_CASE("UFilterPickerProxy", "[Database]")
         *pick.mutable_time() = google::protobuf::util::TimeUtil::SecondsToTimestamp(pickTime.count());
 
         REQUIRE_NOTHROW(db.add(pick));
+        //REQUIRE_THROWS_AS(db.add(pick), UFilterPickerProxy::DuplicatePickException);
          
+
     }
     
 }

@@ -8,10 +8,10 @@ namespace UFilterPickerProxy
 /// @brief Use this error when a pick already exists in the database.
 /// @copryright Ben Baker (University of Utah) distributed under the
 ///             MIT NO AI license.
-class AlreadyExists final : public std::exception
+class DuplicatePickException : public std::exception
 {
 public:
-    explicit AlreadyExists(const std::string &message);
+    explicit DuplicatePickException(const std::string &message); 
     [[nodiscard]] const char *what() const noexcept;
 private:
     std::string mMessage; 

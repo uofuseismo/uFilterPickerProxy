@@ -3,12 +3,12 @@
 
 using namespace UFilterPickerProxy;
 
-AlreadyExists::AlreadyExists(const std::string &message) :
+DuplicatePickException::DuplicatePickException(const std::string &message) :
     mMessage(message)
 {   
 }
 
-const char *AlreadyExists::what() const noexcept
+const char *DuplicatePickException::what() const noexcept
 {   
    return mMessage.c_str();
 }   
