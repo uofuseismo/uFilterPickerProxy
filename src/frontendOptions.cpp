@@ -1,6 +1,7 @@
 #include <memory>
 #include <utility>
 #include <stdexcept>
+#include <optional>
 #include "uFilterPickerProxy/frontendOptions.hpp"
 #include "uFilterPickerProxy/grpcServerOptions.hpp"
 
@@ -11,7 +12,7 @@ class FrontendOptions::FrontendOptionsImpl
 public:
     GRPCServerOptions mGRPCOptions;
     int mMaximumPublishers{2048};
-    int mMaximumMessageSizeInBytes{512};
+    std::optional<int> mMaximumMessageSizeInBytes{std::nullopt};
     bool mHasGRPCOptions{false};
 };
 
@@ -96,10 +97,11 @@ void FrontendOptions::setMaximumMessageSizeInBytes(
         throw std::invalid_argument(
            "Maximum message size must be positive");
     }
-    pImpl->mMaximumMessageSizeInBytes = maxMessageSize;
+    pImpl->mMaximumMessageSizeInBytes = std::optional<int> (maxMessageSize);
 }
 
-int FrontendOptions::getMaximumMessageSizeInBytes() const noexcept
+std::optional<int> 
+    FrontendOptions::getMaximumMessageSizeInBytes() const noexcept
 {
     return pImpl->mMaximumMessageSizeInBytes;
 }

@@ -1,6 +1,7 @@
 #ifndef UFILTER_PICKER_PROXY_FRONTEND_OPTIONS_HPP
 #define UFILTER_PICKER_PROXY_FRONTEND_OPTIONS_HPP
 #include <memory>
+#include <optional>
 namespace UFilterPickerProxy
 {
  class GRPCServerOptions;
@@ -42,7 +43,7 @@ public:
     /// @throws std::invalid_argument if this is not positive. 
     void setMaximumMessageSizeInBytes(int maxMessageSize);
     /// @result The maximum number of publishers.
-    [[nodiscard]] int getMaximumMessageSizeInBytes() const noexcept;
+    [[nodiscard]] std::optional<int> getMaximumMessageSizeInBytes() const noexcept;
 
     /// @brief Destructor.
     ~FrontendOptions();

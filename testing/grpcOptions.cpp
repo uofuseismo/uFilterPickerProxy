@@ -53,7 +53,7 @@ TEST_CASE("UFilterPickerProxy", "frontendOptions")
     SECTION("Defaults")
     {
         const UFilterPickerProxy::FrontendOptions options;
-        REQUIRE(options.getMaximumMessageSizeInBytes() == 512);
+        REQUIRE(options.getMaximumMessageSizeInBytes() == std::nullopt);
         REQUIRE(options.getMaximumNumberOfPublishers() == 2048);
         REQUIRE(options.hasGRPCOptions() == false);
     }
@@ -78,6 +78,7 @@ TEST_CASE("UFilterPickerProxy", "frontendOptions")
         REQUIRE(copy.getGRPCOptions().getHost() == host);
         REQUIRE(copy.getGRPCOptions().getPort() == port);
         REQUIRE(copy.getMaximumNumberOfPublishers() == maxPublishers);
-        REQUIRE(copy.getMaximumMessageSizeInBytes() == maxMessageSize);
+        REQUIRE(copy.getMaximumMessageSizeInBytes() != std::nullopt);
+        REQUIRE(copy.getMaximumMessageSizeInBytes() == maxMessageSize); //NOLINT
     }
 }
