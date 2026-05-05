@@ -1,4 +1,4 @@
-#include <iostream>
+//#include <iostream>
 #include <cctype>
 #include <cstdint>
 #include <utility>
@@ -19,7 +19,7 @@
 #include <sqlite3.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/logger.h>
-#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/sinks/stdout_color_sinks.h> //NOLINT
 #include <google/protobuf/util/time_util.h>
 #include <uFilterPickerProxyAPI/v1/pick.pb.h>
 #include <uFilterPickerProxyAPI/v1/stream_identifier.pb.h>
@@ -34,6 +34,14 @@ using namespace UFilterPickerProxy;
 
 namespace
 {
+
+struct PickExistsInput
+{
+    int streamIdentifier;
+    int64_t time;
+    int phaseHintIdentifier;
+    int algorithmIdentifier;
+}; 
 
 void bindText(const std::string &text,
               const int index,
@@ -635,15 +643,18 @@ INSERT INTO algorithms(name, version, tag) VALUES(?, ?, ?) RETURNING identifier;
         const int64_t time
             = google::protobuf::util::TimeUtil::TimestampToNanoseconds(
                  pick.time());
-        return pickExists(streamIdentifier, time, 
-                          phaseHintIdentifier, algorithmIdentifier);
+        const ::PickExistsInput input
+        {
+            streamIdentifier,
+            time,
+            phaseHintIdentifier,
+            algorithmIdentifier
+        };
+        return pickExists(input);
     }
 
     /// @brief  @result True indicates the pick exists.
-    [[nodiscard]] bool pickExists(const int streamIdentifier,
-                                  const int64_t time,
-                                  const int phaseHintIdentifier,
-                                  const int algorithmIdentifier) const
+    [[nodiscard]] bool pickExists(const ::PickExistsInput &input) const
     {
         bool exists{false};
         const std::string querySQL{
@@ -665,10 +676,14 @@ SELECT COUNT(*) FROM picks WHERE stream = ? AND time = ? AND phase_hint = ? AND 
             throw std::runtime_error(
                 "Failed to prepare pick exists query statement");
         }
-        ::bindInt(streamIdentifier,    1, "stream",     "pick", queryStatement);
-        ::bindInt64(time,              2, "time",       "pick", queryStatement);
-        ::bindInt(phaseHintIdentifier, 3, "phase_hint", "pick", queryStatement);
-        ::bindInt(algorithmIdentifier, 4, "algorithm",  "pick", queryStatement);
+        ::bindInt(input.streamIdentifier,    1,
+                  "stream",     "pick", queryStatement);
+        ::bindInt64(input.time,              2,
+                  "time",       "pick", queryStatement);
+        ::bindInt(input.phaseHintIdentifier, 3,
+                  "phase_hint", "pick", queryStatement);
+        ::bindInt(input.algorithmIdentifier, 4,
+                  "algorithm",  "pick", queryStatement);
 
         returnCode = sqlite3_step(queryStatement);
         if (returnCode != SQLITE_ROW)
@@ -711,7 +726,14 @@ SELECT COUNT(*) FROM picks WHERE stream = ? AND time = ? AND phase_hint = ? AND 
             throw std::runtime_error("Failed to serialize pick proto"); 
         } 
         // Check if it already exists
-        if (pickExists(streamIdentifier, time, phaseHintIdentifier, algorithmIdentifier))
+        const ::PickExistsInput phaseExistsInput
+        {
+            streamIdentifier,
+            time,
+            phaseHintIdentifier,
+            algorithmIdentifier
+        };
+        if (pickExists(phaseExistsInput))
         {
             throw DuplicatePickException(
                 "Pick already exists in database for stream identifier "

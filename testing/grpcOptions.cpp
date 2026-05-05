@@ -3,6 +3,7 @@
 #include <optional>
 #include <catch2/catch_test_macros.hpp>
 #include "uFilterPickerProxy/grpcServerOptions.hpp"
+#include "uFilterPickerProxy/frontendOptions.hpp"
 
 TEST_CASE("UFilterPickerProxy", "[grpcServerOptions]")
 {
@@ -45,4 +46,38 @@ TEST_CASE("UFilterPickerProxy", "[grpcServerOptions]")
         REQUIRE(*copy.getAccessToken() == token); //NOLINT
         REQUIRE(copy.isReflectionEnabled() == true); 
     }   
+}
+
+TEST_CASE("UFilterPickerProxy", "frontendOptions")
+{
+    SECTION("Defaults")
+    {
+        const UFilterPickerProxy::FrontendOptions options;
+        REQUIRE(options.getMaximumMessageSizeInBytes() == 512);
+        REQUIRE(options.getMaximumNumberOfPublishers() == 2048);
+        REQUIRE(options.hasGRPCOptions() == false);
+    }
+
+    SECTION("Options")
+    {
+        const std::string host{"some.host.org"};
+        constexpr uint16_t port{12345};
+        constexpr int maxPublishers{383};
+        constexpr int maxMessageSize{83393};
+        UFilterPickerProxy::GRPCServerOptions grpcOptions;
+
+        grpcOptions.setHost(host);
+        grpcOptions.setPort(port);
+
+        UFilterPickerProxy::FrontendOptions options;
+        REQUIRE_NOTHROW(options.setGRPCOptions(grpcOptions));
+        REQUIRE_NOTHROW(options.setMaximumNumberOfPublishers(maxPublishers));
+        REQUIRE_NOTHROW(options.setMaximumMessageSizeInBytes(maxMessageSize));
+ 
+        const UFilterPickerProxy::FrontendOptions copy{options};
+        REQUIRE(copy.getGRPCOptions().getHost() == host);
+        REQUIRE(copy.getGRPCOptions().getPort() == port);
+        REQUIRE(copy.getMaximumNumberOfPublishers() == maxPublishers);
+        REQUIRE(copy.getMaximumMessageSizeInBytes() == maxMessageSize);
+    }
 }
