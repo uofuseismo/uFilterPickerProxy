@@ -126,6 +126,7 @@ TEST_CASE("UFilterPickerProxy", "[ProxyOptions]")
         const UFilterPickerProxy::ProxyOptions options;
         REQUIRE(options.hasFrontendOptions() == false);
         REQUIRE(options.hasBackendOptions() == false);
+        REQUIRE(options.getQueueCapacity() == 8192);
     }
 
     SECTION("Options")
@@ -133,6 +134,7 @@ TEST_CASE("UFilterPickerProxy", "[ProxyOptions]")
         const std::string host{"this.host.org"};
         constexpr uint16_t fePort{6432};
         constexpr uint16_t bePort{6433};
+        constexpr int queueCapacity{832};
         UFilterPickerProxy::GRPCServerOptions grpcFEOptions;  
         grpcFEOptions.setHost(host);
         grpcFEOptions.setPort(fePort);
@@ -150,9 +152,11 @@ TEST_CASE("UFilterPickerProxy", "[ProxyOptions]")
         UFilterPickerProxy::ProxyOptions options;
         REQUIRE_NOTHROW(options.setFrontendOptions(feOptions));
         REQUIRE_NOTHROW(options.setBackendOptions(beOptions));
+        REQUIRE_NOTHROW(options.setQueueCapacity(queueCapacity));
 
         REQUIRE(options.getFrontendOptions().getGRPCOptions().getPort() == fePort);
         REQUIRE(options.getBackendOptions().getGRPCOptions().getPort() == bePort);
+        REQUIRE(options.getQueueCapacity() == queueCapacity);
 
     }
 }

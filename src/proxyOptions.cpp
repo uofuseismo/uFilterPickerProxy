@@ -13,6 +13,7 @@ class ProxyOptions::ProxyOptionsImpl
 public:
     FrontendOptions mFrontendOptions; 
     BackendOptions mBackendOptions;
+    int mQueueCapacity{8192};
     bool mHasFrontendOptions{false};
     bool mHasBackendOptions{false};
 };
@@ -112,4 +113,18 @@ BackendOptions ProxyOptions::getBackendOptions() const
 bool ProxyOptions::hasBackendOptions() const noexcept
 {
     return pImpl->mHasBackendOptions;
+}
+
+void ProxyOptions::setQueueCapacity(const int capacity)
+{
+    if (capacity < 1)
+    {
+        throw std::invalid_argument("Queue capacity must be positive");
+    }
+    pImpl->mQueueCapacity = capacity;
+}
+
+int ProxyOptions::getQueueCapacity() const noexcept
+{
+    return pImpl->mQueueCapacity;
 }

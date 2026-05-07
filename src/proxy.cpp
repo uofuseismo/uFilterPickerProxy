@@ -186,13 +186,23 @@ public:
             }
             if (gotPick)
             {
-
+                //mDatabase->add(pick);
+                //mBackend->enqueue(pick);
             }
             else
             {
                 constexpr std::chrono::milliseconds timeOut{25};
                 std::this_thread::sleep_for(timeOut);
             }
+        }
+    }
+
+    void cleanDatabase()
+    {
+        constexpr std::chrono::seconds cleanEvery{60};
+        while (mKeepRunning.load(std::memory_order_relaxed))
+        {
+            // Set a condition variable
         }
     }
 

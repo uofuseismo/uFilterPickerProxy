@@ -42,6 +42,11 @@ public:
     /// @result True indicates the backend options were set.
     [[nodiscard]] bool hasBackendOptions() const noexcept;
 
+    /// @brief Sets the internal queue size.
+    void setQueueCapacity(int queueCapacity);
+    /// @result The maximum internal queue size.
+    [[nodiscard]] int getQueueCapacity() const noexcept;
+    
     /// @brief Destructor.
     ~ProxyOptions();
     /// @brief Copy assignment.
