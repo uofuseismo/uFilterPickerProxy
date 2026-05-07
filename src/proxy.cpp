@@ -1,16 +1,24 @@
 #include <cstdint>
+#include <cstddef>
+#include <cctype>
 #include <atomic>
 #include <thread>
 #include <utility>
 #include <memory>
+#include <string>
+#include <vector>
 #include <functional>
 #include <chrono>
 #include <queue>
 #include <mutex>
+#include <algorithm>
+#include <ranges>
+#include <exception>
 #include <stdexcept>
 #include <google/protobuf/util/time_util.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/logger.h>
+#include <spdlog/sinks/stdout_color_sinks.h> //NOLINT
 #include "uFilterPickerProxy/proxy.hpp"
 #include "uFilterPickerProxy/proxyOptions.hpp"
 #include "uFilterPickerProxy/database.hpp"
@@ -20,12 +28,124 @@
 #include "uFilterPickerProxy/backendOptions.hpp"
 #include "uFilterPickerProxy/metricsSingleton.hpp"
 #include "uFilterPickerProxyAPI/v1/pick.pb.h"
+#include "uFilterPickerProxyAPI/v1/algorithm.pb.h"
+#include "uFilterPickerProxyAPI/v1/stream_identifier.pb.h"
 
 using namespace UFilterPickerProxy;
+
+namespace
+{
+
+std::string capitalizeAndRemoveBlanks(const std::string &input)
+{
+    std::string result{input};
+    const auto ret = std::ranges::remove_if(result, ::isspace);
+    result.erase(ret.begin(), ret.end());
+    std::ranges::transform(result, result.end(), ::toupper);
+    return result;
+}
+
+UFilterPickerProxyAPI::V1::StreamIdentifier checkAndFixStreamIdentifier(
+    UFilterPickerProxyAPI::V1::StreamIdentifier &&identifierIn)
+{
+    UFilterPickerProxyAPI::V1::StreamIdentifier identifier{std::move(identifierIn)};
+    if (!identifier.has_network())
+    {
+        throw std::invalid_argument("Network not set");
+    }
+    auto network = ::capitalizeAndRemoveBlanks(identifier.network());
+    if (network.empty()){throw std::invalid_argument("Network is empty");}
+    identifier.set_network(network);
+
+    if (!identifier.has_station())
+    {
+        throw std::invalid_argument("Station not set");
+    }
+    auto station = ::capitalizeAndRemoveBlanks(identifier.station());
+    if (station.empty()){throw std::invalid_argument("Station is empty");}
+    identifier.set_station(station);
+
+    if (!identifier.has_channel())
+    {
+        throw std::invalid_argument("Channel not set");
+    }
+    auto channel = ::capitalizeAndRemoveBlanks(identifier.channel());
+    if (channel.empty()){throw std::invalid_argument("Channel is empty");}
+    identifier.set_channel(channel);
+
+    if (!identifier.has_location_code())
+    {
+        identifier.set_location_code("--");
+    }
+    else
+    {
+        auto location = capitalizeAndRemoveBlanks(identifier.location_code());
+        if (location.empty())
+        {
+            identifier.set_location_code("--");
+        }
+        else
+        {
+            identifier.set_location_code(location);
+        }
+    }
+    return identifier;
+}
+
+UFilterPickerProxyAPI::V1::Algorithm checkAndFixAlgorithm(
+    UFilterPickerProxyAPI::V1::Algorithm &&algorithmIn)
+{
+    UFilterPickerProxyAPI::V1::Algorithm algorithm{std::move(algorithmIn)};
+    if (!algorithm.has_name())
+    {
+        algorithm.set_name("uFilterPicker");
+    }
+    if (!algorithm.has_version())
+    {
+        throw std::invalid_argument("Algorithm version not set");
+    }
+    return algorithm;  
+}
+
+}
 
 class Proxy::ProxyImpl
 {
 public:
+    ProxyImpl(const ProxyOptions &options,
+              std::shared_ptr<spdlog::logger> logger) :
+        mOptions(options),
+        mLogger(std::move(logger))
+    {
+        if (!mOptions.hasFrontendOptions())
+        {
+            throw std::invalid_argument("Frontend options not set on proxy");
+        }
+        if (!mOptions.hasBackendOptions())
+        {
+            throw std::invalid_argument("Backend options not set on proxy");
+        }
+        if (mLogger == nullptr)
+        {   
+            // NOLINTBEGIN(misc-include-cleaner)
+            auto classId
+                = std::to_string (reinterpret_cast<std::uintptr_t> (this));
+            mLogger = spdlog::stdout_color_mt("ProxyConsole-"
+                                            + classId);
+            // NOLINTEND(misc-include-cleaner)
+        }
+        mFrontend 
+            = std::make_unique<Frontend> (mOptions.getFrontendOptions(), 
+                                          mAddPickCallbackFunction, 
+                                          mLogger);
+                                        
+        std::vector<UFilterPickerProxyAPI::V1::Pick> loadedPicks;
+        mBackend 
+            = std::make_unique<Backend> (mOptions.getBackendOptions(),
+                                         loadedPicks,
+                                         mLogger);
+    }
+
     /// Stop the proxy
     void stop()
     {
@@ -92,6 +212,15 @@ public:
         {
             throw std::invalid_argument("Algorithm not set");
         }
+        // Check (and fix capitalization) of our identifier
+        auto identifier = pick.stream_identifier();
+        auto newIdentifier = ::checkAndFixStreamIdentifier(std::move(identifier));
+        *pick.mutable_stream_identifier() = std::move(newIdentifier);
+        // Check (and fix name if not present) of algorithm
+        auto algorithm = pick.algorithm();
+        auto newAlgorithm = ::checkAndFixAlgorithm(std::move(algorithm));
+        *pick.mutable_algorithm() = std::move(newAlgorithm);
+        // Check that the pick time makes some sense
         const auto pickTime
             = google::protobuf::util::TimeUtil::TimestampToNanoseconds(
                  pick.time());

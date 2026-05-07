@@ -11,8 +11,8 @@ class ProxyOptions::ProxyOptionsImpl
 public:
     FrontendOptions mFrontendOptions; 
     BackendOptions mBackendOptions;
-    bool mHaveFrontendOptions{false};
-    bool mhaveBackendOptions{false};
+    bool mHasFrontendOptions{false};
+    bool mHasBackendOptions{false};
 };
 
 /// Constructor
@@ -51,3 +51,45 @@ ProxyOptions &ProxyOptions::operator=(ProxyOptions &&options) noexcept
 
 /// Destructor
 ProxyOptions::~ProxyOptions() = default;
+
+/// Frontend options
+void ProxyOptions::setFrontendOptions(const FrontendOptions &options)
+{
+    pImpl->mFrontendOptions = options;
+    pImpl->mHasFrontendOptions = true;
+}
+
+FrontendOptions ProxyOptions::getFrontendOptions() const
+{
+    if (!hasFrontendOptions())
+    {
+        throw std::runtime_error("Frontend options not set");
+    }
+    return pImpl->mFrontendOptions;
+}
+
+bool ProxyOptions::hasFrontendOptions() const noexcept
+{
+    return pImpl->mHasFrontendOptions;
+}
+
+/// Backend options
+void ProxyOptions::setBackendOptions(const BackendOptions &options)
+{
+    pImpl->mBackendOptions = options;
+    pImpl->mHasBackendOptions = true;
+}
+
+BackendOptions ProxyOptions::getBackendOptions() const
+{
+    if (!hasBackendOptions())
+    {
+        throw std::runtime_error("Frontend options not set");
+    }
+    return pImpl->mBackendOptions;
+}
+
+bool ProxyOptions::hasBackendOptions() const noexcept
+{
+    return pImpl->mHasBackendOptions;
+}

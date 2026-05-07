@@ -30,7 +30,7 @@ public:
     /// @throws std::runtime_error if \c haveFrontendOptions() is false. 
     [[nodiscard]] FrontendOptions getFrontendOptions() const;
     /// @result True indicates the frontend options were set.
-    [[nodiscard]] bool haveFrontendOptions() const noexcept;
+    [[nodiscard]] bool hasFrontendOptions() const noexcept;
 
     /// @brief Sets the backend options.  This is where picks are consumed
     ///        by subscribers.
@@ -40,7 +40,7 @@ public:
     /// @throws std::runtime_error if \c haveBackendOptions() is false. 
     [[nodiscard]] BackendOptions getBackendOptions() const;
     /// @result True indicates the backend options were set.
-    [[nodiscard]] bool haveBackendOptions() const noexcept;
+    [[nodiscard]] bool hasBackendOptions() const noexcept;
 
     /// @brief Destructor.
     ~ProxyOptions();
