@@ -7,13 +7,14 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <exception>
 #include <functional>
 #include <chrono>
 #include <queue>
 #include <mutex>
+#include <condition_variable>
 #include <algorithm>
 #include <ranges>
-#include <exception>
 #include <stdexcept>
 #include <google/protobuf/util/time_util.h>
 #include <spdlog/spdlog.h>
@@ -27,6 +28,7 @@
 #include "uFilterPickerProxy/backend.hpp"
 #include "uFilterPickerProxy/backendOptions.hpp"
 #include "uFilterPickerProxy/metricsSingleton.hpp"
+#include "uFilterPickerProxy/exception.hpp"
 #include "uFilterPickerProxyAPI/v1/pick.pb.h"
 #include "uFilterPickerProxyAPI/v1/algorithm.pb.h"
 #include "uFilterPickerProxyAPI/v1/stream_identifier.pb.h"
@@ -113,10 +115,25 @@ class Proxy::ProxyImpl
 {
 public:
     ProxyImpl(const ProxyOptions &options,
+              std::unique_ptr<Database> &&database,
               std::shared_ptr<spdlog::logger> logger) :
         mOptions(options),
+        mDatabase(std::move(database)),
         mLogger(std::move(logger))
     {
+        if (mDatabase == nullptr)
+        {
+            throw std::invalid_argument("Database is null");
+        }
+        if (!mDatabase->isOpen())
+        {
+            throw std::invalid_argument("Database is not open");
+        }
+        if (mDatabase->isReadOnly())
+        {
+            throw std::invalid_argument(
+                "Database must be open in read-write mode");
+        }
         if (!mOptions.hasFrontendOptions())
         {
             throw std::invalid_argument("Frontend options not set on proxy");
@@ -134,12 +151,20 @@ public:
                                             + classId);
             // NOLINTEND(misc-include-cleaner)
         }
+        mMaximumInputQueueSize = static_cast<size_t> (mOptions.getQueueCapacity());
+
+        // Create frontend (picks come in)
+        const auto frontendOptions = mOptions.getFrontendOptions();
         mFrontend 
-            = std::make_unique<Frontend> (mOptions.getFrontendOptions(), 
+            = std::make_unique<Frontend> (frontendOptions,
                                           mAddPickCallbackFunction, 
                                           mLogger);
-                                        
-        std::vector<UFilterPickerProxyAPI::V1::Pick> loadedPicks;
+                  
+        // Create backend (picks go out)
+        const auto backendOptions = mOptions.getBackendOptions();
+        // No point loading more picks than we can buffer on output
+        const auto maxPicksToLoad = backendOptions.getQueueCapacity();
+        auto loadedPicks = mDatabase->getMostRecentlySubmittedPicks(maxPicksToLoad);
         mBackend 
             = std::make_unique<Backend> (mOptions.getBackendOptions(),
                                          loadedPicks,
@@ -165,7 +190,7 @@ public:
             std::this_thread::sleep_for(pause);
         }
         // Now shutdown the database
-
+        mDatabase->close();
         mIsRunning.store(false);
     }
 
@@ -186,8 +211,40 @@ public:
             }
             if (gotPick)
             {
-                //mDatabase->add(pick);
-                //mBackend->enqueue(pick);
+                bool enqueuePick{false};
+                try
+                {
+                    enqueuePick = true;
+                }
+                catch (const UFilterPickerProxy::DuplicatePickException &e)
+                {
+                    SPDLOG_LOGGER_DEBUG(
+                        mLogger,
+                        "Detected duplicate pick - will not propagate - details {}", 
+                        std::string {e.what()});
+                    mMetrics.incrementDuplicatePicksReceivedCounter();
+                    enqueuePick = false;
+                }
+                catch (const std::exception &e)
+                {
+                    SPDLOG_LOGGER_ERROR(mLogger, 
+                                        "Pick to database failed because {}", 
+                                        std::string {e.what()});
+                    enqueuePick = false;
+                }
+                if (enqueuePick)
+                { 
+                    try
+                    {
+                        mBackend->enqueue(std::move(pick));
+                    }
+                    catch (const std::exception &e)
+                    {
+                        SPDLOG_LOGGER_ERROR(mLogger, 
+                                            "Failed to enqueue pick because {}", 
+                                            std::string {e.what()});
+                    }
+                }
             }
             else
             {
@@ -203,6 +260,16 @@ public:
         while (mKeepRunning.load(std::memory_order_relaxed))
         {
             // Set a condition variable
+            if (mDatabase->isOpen())
+            {
+                //mDatabase->deletePicksBefore();
+            }
+            std::unique_lock<std::mutex> lock(mShutdownMutex);
+            mShutdownCondition.wait_for(lock, cleanEvery,
+                                        [this]
+                                        {
+                                           return mShutdownRequested;
+                                        });
         }
     }
 
@@ -262,6 +329,7 @@ public:
 private:
 //private:
     ProxyOptions mOptions;
+    std::unique_ptr<Database> mDatabase{nullptr};
     std::shared_ptr<spdlog::logger> mLogger{nullptr};
     std::mutex mMutex;
     std::function<void(UFilterPickerProxyAPI::V1::Pick &&)> 
@@ -270,15 +338,30 @@ private:
         std::bind(&ProxyImpl::addPickCallback, this,
                   std::placeholders::_1)
     };   
+    UFilterPickerProxy::MetricsSingleton &mMetrics
+    {
+        UFilterPickerProxy::MetricsSingleton::getInstance()
+    };
     std::unique_ptr<Frontend> mFrontend{nullptr};
     std::unique_ptr<Backend> mBackend{nullptr};
     std::queue<UFilterPickerProxyAPI::V1::Pick> mInputQueue;
     size_t mMaximumInputQueueSize{4096};
     std::atomic<bool> mIsRunning{false};
     std::atomic<bool> mKeepRunning{true};
+    std::mutex mShutdownMutex;
+    std::condition_variable mShutdownCondition;
+    bool mShutdownRequested{false};
 };
 
 /// Constructor
+Proxy::Proxy(const ProxyOptions &options,
+             std::unique_ptr<Database> &&database,
+             std::shared_ptr<spdlog::logger> logger) :
+    pImpl(std::make_unique<ProxyImpl> (options, 
+                                       std::move(database), 
+                                       std::move(logger)))
+{
+}
 
 /// Destructor
 Proxy::~Proxy() = default;

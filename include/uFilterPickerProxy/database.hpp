@@ -42,6 +42,9 @@ public:
     /// @result The picks in the database whose time exceeds the given value.
     [[nodiscard]] std::vector<UFilterPickerProxyAPI::V1::Pick> getPicksSince(
         const std::chrono::nanoseconds &startTime) const;
+    /// @result Gets the most recently submitted picks.
+    [[nodiscard]] std::vector<UFilterPickerProxyAPI::V1::Pick> getMostRecentlySubmittedPicks() const;
+    [[nodiscard]] std::vector<UFilterPickerProxyAPI::V1::Pick> getMostRecentlySubmittedPicks(int limit) const;
     /// @brief Deletes picks before a given time.
     /// @result The number of picks deleted.
     [[nodiscard]] int deletePicksBefore(const std::chrono::nanoseconds &endTime);

@@ -6,6 +6,7 @@
 namespace UFilterPickerProxy
 {
  class ProxyOptions;
+ class Database;
 }
 namespace UFilterPickerProxy
 {
@@ -18,9 +19,12 @@ class Proxy
 {
 public:
     /// @brief Constructor.
-    /// @param[in] options  The options defining the proxy.
-    /// @param[in] logger   The logger.
+    /// @param[in] options   The options defining the proxy.
+    /// @param[in] database  The database that allows the proxy to restore picks
+    ///                      after shutdown - i.e., be stateful.
+    /// @param[in] logger    The logger.
     Proxy(const ProxyOptions &options,
+          std::unique_ptr<Database> &&database,
           std::shared_ptr<spdlog::logger> logger);
 
     /// @brief Starts the proxy.

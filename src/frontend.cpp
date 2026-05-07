@@ -219,7 +219,8 @@ public:
     std::atomic<int> *mPublisherCount{nullptr};
     std::shared_ptr<spdlog::logger> mLogger;
     UFilterPickerProxyAPI::V1::Pick mCurrentPick;
-    UFilterPickerProxy::MetricsSingleton &mMetrics{
+    UFilterPickerProxy::MetricsSingleton &mMetrics
+    {
         UFilterPickerProxy::MetricsSingleton::getInstance()
     };
     std::string mPeer;

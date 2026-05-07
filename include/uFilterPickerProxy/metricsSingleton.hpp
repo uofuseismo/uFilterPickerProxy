@@ -30,6 +30,11 @@ public:
     /// @result The number of invalid picks received.
     [[nodiscard]] int64_t getInvalidPicksReceivedCount() const noexcept;
 
+    /// @brief Increments the duplicate picks received counter.
+    void incrementDuplicatePicksReceivedCounter();
+    /// @result The number of duplicate picks received.
+    [[nodiscard]] int64_t getDupcliatePicksReceivedCount() const noexcept;
+
     /// @brief Updates the frontend utilization.
     /// @param[in] utilization  This utilization in the range of [0, 1].
     void updateFrontendUtilization(double utilization);
@@ -50,6 +55,7 @@ private:
     std::atomic<int64_t> mOverflowInputPicksCounter{0};
     std::atomic<int64_t> mPicksReceivedCounter{0};
     std::atomic<int64_t> mInvalidPicksReceivedCounter{0};
+    std::atomic<int64_t> mDuplicatePicksCounter{0};
     std::atomic<double> mFrontendUtilization{0};
     std::atomic<double> mBackendUtilization{0};
 };

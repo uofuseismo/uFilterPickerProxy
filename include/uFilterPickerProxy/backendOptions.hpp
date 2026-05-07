@@ -25,12 +25,17 @@ public:
     [[nodiscard]] GRPCServerOptions getGRPCOptions() const;
     /// @result True indicates the gRPC options were set.
     [[nodiscard]] bool hasGRPCOptions() const noexcept;
-    
+
     /// @param[in] maxSubscribers  The maximum number of subscribers.
     void setMaximumNumberOfSubscribers(const int maxSubscribers);
     /// @result The maximum number of subscribers.
     /// @note By default this is 64.
     [[nodiscard]] int getMaximumNumberOfSubscribers() const noexcept;
+
+    /// @brief Sets the output queue size.
+    void setQueueCapacity(int queueCapacity);
+    /// @result The maximum output queue size.
+    [[nodiscard]] int getQueueCapacity() const noexcept;
 
     /// @brief Destructor.
     ~BackendOptions();

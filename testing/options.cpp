@@ -95,6 +95,7 @@ TEST_CASE("UFilterPickerProxy", "[BackendOptions]")
     {
         const UFilterPickerProxy::BackendOptions options;
         REQUIRE(options.getMaximumNumberOfSubscribers() == 64);
+        REQUIRE(options.getQueueCapacity() == 8192);
         REQUIRE(options.hasGRPCOptions() == false);
     }
 
@@ -103,6 +104,7 @@ TEST_CASE("UFilterPickerProxy", "[BackendOptions]")
         const std::string host{"another.host.org"};
         constexpr uint16_t port{6432};
         constexpr int maxSubscribers{3833};
+        constexpr int queueCapacity{910};
         UFilterPickerProxy::GRPCServerOptions grpcOptions;
 
         grpcOptions.setHost(host);
@@ -111,11 +113,13 @@ TEST_CASE("UFilterPickerProxy", "[BackendOptions]")
         UFilterPickerProxy::BackendOptions options;
         REQUIRE_NOTHROW(options.setGRPCOptions(grpcOptions));
         REQUIRE_NOTHROW(options.setMaximumNumberOfSubscribers(maxSubscribers));
+        REQUIRE_NOTHROW(options.setQueueCapacity(queueCapacity));
 
         const UFilterPickerProxy::BackendOptions copy{options};
         REQUIRE(copy.getGRPCOptions().getHost() == host);
         REQUIRE(copy.getGRPCOptions().getPort() == port);
         REQUIRE(copy.getMaximumNumberOfSubscribers() == maxSubscribers);
+        REQUIRE(copy.getQueueCapacity() == queueCapacity);
     }
 }
 

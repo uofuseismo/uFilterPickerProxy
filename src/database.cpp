@@ -572,31 +572,6 @@ INSERT INTO algorithms(name, version, tag) VALUES(?, ?, ?) RETURNING identifier;
         ::bindText(name,    1, "name",    "algorithms", insertStatement);
         ::bindText(version, 2, "version", "algorithms", insertStatement);
         ::bindText(tag,     3, "tag",     "algorithms", insertStatement);
-/*
-        std::array<std::pair<std::string, std::string>, 3>
-            insertMap
-            {
-                std::pair<std::string, std::string> {"name", name},
-                std::pair<std::string, std::string> {"version", version},
-                std::pair<std::string, std::string> {"tag", tag}
-            };
-        for (size_t i = 0; i < insertMap.size(); ++i)
-        {
-            const auto index = static_cast<int> (i + 1);
-            const auto element = insertMap.at(i);
-            returnCode = sqlite3_bind_text(
-                insertStatement,
-                index,
-                element.second.c_str(),
-                static_cast<int> (element.second.size()),
-                nullptr);
-            if (returnCode != SQLITE_OK)
-            {
-                sqlite3_finalize(insertStatement); 
-                throw std::runtime_error("Failed to bind " + element.first);
-            }
-        }
-*/
         // Send it 
         returnCode = sqlite3_step(insertStatement);
         // Try to get the corresponding identifier
@@ -927,6 +902,49 @@ SELECT proto FROM picks WHERE time > ? ORDER BY load_time ASC;
         return result;
     }    
 
+    [[nodiscard]] std::vector<UFilterPickerProxyAPI::V1::Pick> 
+        getMostRecentlySubmittedPicks(const int limit) const
+    {
+        if (!isOpen()){throw std::runtime_error("Database not open");}
+        std::vector<UFilterPickerProxyAPI::V1::Pick> result;
+        const std::string querySQL{
+R"""(
+SELECT proto FROM picks ORDER BY load_time DESC LIMIT ?;
+)"""
+        };
+        sqlite3_stmt *statement{nullptr};
+        {
+        const std::lock_guard<std::mutex> lock(mMutex);
+            auto returnCode
+            = sqlite3_prepare_v2(mDatabaseHandle, 
+                                 querySQL.c_str(),
+                                 -1, &statement, nullptr);
+        if (returnCode != SQLITE_OK)
+        {
+            sqlite3_finalize(statement);
+            throw std::runtime_error(
+                "Failed to prepare select picks statement");
+        }
+        ::bindInt(limit, 1, "limit", "pick", statement);
+        while (sqlite3_step(statement) != SQLITE_DONE)
+        {
+            const auto pickProtoBlob
+                = reinterpret_cast<const char *>
+                  (sqlite3_column_blob(statement, 0));
+            const auto pickProtoSize = sqlite3_column_bytes(statement, 0);
+            const std::string pickProto(pickProtoBlob, pickProtoSize);
+            UFilterPickerProxyAPI::V1::Pick pick;
+            if (!pick.ParseFromString(pickProto))
+            {
+                throw std::runtime_error("Failed to parse pick proto");
+            }
+            result.push_back(std::move(pick));
+        }
+        sqlite3_finalize(statement);
+        }
+        return result;
+    }    
+
     [[nodiscard]] int deletePicksBefore(const std::chrono::nanoseconds &endTime)
     {
         int nDeleted{0};
@@ -1063,6 +1081,33 @@ std::vector<UFilterPickerProxyAPI::V1::Pick> Database::getPicksSince(
     }
     return pImpl->getPicksSince(startTime);
 }
+
+/// Get the most recently submitted picks
+std::vector<UFilterPickerProxyAPI::V1::Pick> 
+Database::getMostRecentlySubmittedPicks(const int limit) const
+{
+
+    if (limit < 0)
+    {
+        throw std::invalid_argument("Limit must be non-negative");
+    }
+    if (limit == 0)
+    {
+        return std::vector<UFilterPickerProxyAPI::V1::Pick> {};
+    }
+    if (!isOpen())
+    {
+        throw std::runtime_error("Database is not open");
+    }
+    pImpl->getMostRecentlySubmittedPicks(limit);
+}
+
+std::vector<UFilterPickerProxyAPI::V1::Pick> 
+Database::getMostRecentlySubmittedPicks() const
+{
+    return getMostRecentlySubmittedPicks(std::numeric_limits<int>::max());
+}
+
 
 /// Deletes picks from the database.
 int Database::deletePicksBefore(const std::chrono::nanoseconds &endTime)

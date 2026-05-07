@@ -11,6 +11,7 @@ class BackendOptions::BackendOptionsImpl
 public:
     GRPCServerOptions mGRPCOptions;
     int mMaximumNumberOfSubscribers{64};
+    int mQueueCapacity{8192};
     bool mHasGRPCOptions{false};
 };
 
@@ -83,4 +84,18 @@ void BackendOptions::setMaximumNumberOfSubscribers(const int maxSubscribers)
 int BackendOptions::getMaximumNumberOfSubscribers() const noexcept
 {
     return pImpl->mMaximumNumberOfSubscribers; 
+}
+
+void BackendOptions::setQueueCapacity(const int capacity)
+{
+    if (capacity < 1)
+    {
+        throw std::invalid_argument("Queue capacity must be positive");
+    }
+    pImpl->mQueueCapacity = capacity;
+}
+
+int BackendOptions::getQueueCapacity() const noexcept
+{
+    return pImpl->mQueueCapacity;
 }
