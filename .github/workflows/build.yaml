@@ -17,12 +17,14 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
-    name: Build on ${{ matrix.distro }} ${{ matrix.arch }}
+    runs-on: ${{ matrix.distro }}
     strategy:
       fail-fast: false
       matrix:
+        distro: [ubuntu-latest]
+        arch: [x86]
         BUILD_TARGET: [Release]
+    name: Build on ${{ matrix.distro }} ${{ matrix.arch }}
 
     steps:
       - uses: actions/checkout@v6
