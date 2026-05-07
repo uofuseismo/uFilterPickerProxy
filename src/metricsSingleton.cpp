@@ -63,10 +63,20 @@ void MetricsSingleton::updateFrontendUtilization(const double utilization)
                                std::memory_order_relaxed);
 }
 
+double MetricsSingleton::getFrontendUtilization() const noexcept
+{
+    return mFrontendUtilization.load(std::memory_order_relaxed);
+}
+
 void MetricsSingleton::updateBackendUtilization(const double utilization)
 {
     mBackendUtilization.store(std::min(std::max(0.0, utilization), 1.0),
                               std::memory_order_relaxed);
+}
+
+double MetricsSingleton::getBackendUtilization() const noexcept
+{
+    return mBackendUtilization.load(std::memory_order_relaxed);
 }
 
 void UFilterPickerProxy::initializeMetricsSingleton()

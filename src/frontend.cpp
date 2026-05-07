@@ -25,6 +25,7 @@
 #include "uFilterPickerProxy/frontend.hpp"
 #include "uFilterPickerProxy/frontendOptions.hpp"
 #include "uFilterPickerProxy/grpcServerOptions.hpp"
+#include "uFilterPickerProxy/metricsSingleton.hpp"
 #include "uFilterPickerProxyAPI/v1/frontend.grpc.pb.h"
 #include "uFilterPickerProxyAPI/v1/pick.pb.h"
 #include "uFilterPickerProxyAPI/v1/publish_response.pb.h"
@@ -83,13 +84,16 @@ public:
         assert(mKeepRunning != nullptr);
         assert(mPublisherCount != nullptr);
 #endif
+        mPeer = context->peer();
+        mMaximumNumberOfPublishers = options.getMaximumNumberOfPublishers();
         mMaximumConsecutiveInvalidMessages 
             = options.getMaximumConsecutiveInvalidMessages();
 
-        const auto maxPublishers = options.getMaximumNumberOfPublishers();
-        if (mPublisherCount->load() >= maxPublishers)
+        if (mPublisherCount->load() >= mMaximumNumberOfPublishers)
         {
-            SPDLOG_LOGGER_WARN(mLogger, "Maximum publisher limit reached");
+            SPDLOG_LOGGER_WARN(mLogger,
+                               "Maximum publisher limit of {} reached",
+                               mMaximumNumberOfPublishers);
             Finish({grpc::StatusCode::RESOURCE_EXHAUSTED,
                     "Maximum publisher limit reached"});
             return;
@@ -113,7 +117,7 @@ public:
         const auto utilization
             = static_cast<double> (nPublishers)
              /std::max(1, mMaximumNumberOfPublishers);
-
+        mMetrics.updateFrontendUtilization(utilization);
         mRegistered = true;
         SPDLOG_LOGGER_INFO(mLogger,
             "Pick publisher connected {}; Frontend managing {} publishers ({} pct utilized)",
@@ -152,8 +156,9 @@ public:
                     mPeer);
                 const grpc::Status status{
                     grpc::StatusCode::INVALID_ARGUMENT,
-                    "Too many conseuctive messages were invalid - check API"};
+                    "Too many consecutive messages were invalid - check API"};
                 Finish(status);
+                return;
             }
         }
         catch (const DuplicatePickException &)
@@ -173,7 +178,10 @@ public:
         }
         else
         {
-             
+            SPDLOG_LOGGER_DEBUG(mLogger, "Terminating frontend");
+            const grpc::Status status{grpc::StatusCode::UNAVAILABLE,
+                                      "Server shutdown - try again later"};
+            Finish(status);
         }
     }
 
@@ -185,6 +193,7 @@ public:
             auto utilization
                 = static_cast<double> (nPublishers)
                  /std::max(1, mMaximumNumberOfPublishers);
+            mMetrics.updateFrontendUtilization(utilization);
             SPDLOG_LOGGER_DEBUG(mLogger,
                 "{} disconnected; Now managing {} publishers ({} pct utilized)",
                 mPeer,
@@ -194,6 +203,14 @@ public:
         delete this;
     }
 
+    void OnCancel() override 
+    {
+        SPDLOG_LOGGER_INFO(mLogger,
+                           "Async pick proxy frontend RPC canceled by {}",
+                           mPeer);
+        Finish(grpc::Status::CANCELLED);                    
+    }   
+
 //private:
     grpc::CallbackServerContext *mContext{nullptr};
     UFilterPickerProxyAPI::V1::PublishResponse *mResponse{nullptr};
@@ -202,6 +219,9 @@ public:
     std::atomic<int> *mPublisherCount{nullptr};
     std::shared_ptr<spdlog::logger> mLogger;
     UFilterPickerProxyAPI::V1::Pick mCurrentPick;
+    UFilterPickerProxy::MetricsSingleton &mMetrics{
+        UFilterPickerProxy::MetricsSingleton::getInstance()
+    };
     std::string mPeer;
     uint64_t mTotalPicks{0};
     uint64_t mInvalidPicks{0};
@@ -247,7 +267,8 @@ public:
     void start()
     {
         mKeepRunning.store(true);
-        mNumberOfPublishers.store(0);
+        mPublisherCount.store(0);
+        MetricsSingleton::getInstance().updateFrontendUtilization(0);
         const auto grpcOptions = mOptions.getGRPCOptions();
         const auto address = grpcOptions.getHost() + ":"
                            + std::to_string(grpcOptions.getPort());
@@ -304,7 +325,8 @@ public:
             mServer->Shutdown();
             SPDLOG_LOGGER_INFO(mLogger, "Server shut down");
         }
-        mNumberOfPublishers.store(0);
+        mPublisherCount.store(0);
+        MetricsSingleton::getInstance().updateFrontendUtilization(0);
     }
 
     /// The RPC
@@ -312,17 +334,15 @@ public:
         Publish(grpc::CallbackServerContext* context,
                 UFilterPickerProxyAPI::V1::PublishResponse *publishResponse) override
     {
-        /*
         return new ::AsynchronousReader(
-            mOptions,
+            mOptions, 
             context,
             mCallback,
-            publishResponse,
-            mSecured,
+            publishResponse, 
             &mKeepRunning,
-            &mNumberOfPublishers,
+            &mPublisherCount,
+            mSecured,
             mLogger);
-            */
     }
 
     ~FrontendImpl() override
@@ -335,7 +355,7 @@ public:
     std::function<void (UFilterPickerProxyAPI::V1::Pick &&)> mCallback;
     std::shared_ptr<spdlog::logger> mLogger{nullptr};
     std::unique_ptr<grpc::Server> mServer{nullptr};
-    std::atomic<int> mNumberOfPublishers{0};
+    std::atomic<int> mPublisherCount{0};
     std::atomic<bool> mKeepRunning{true};
     bool mSecured{false};
 };
