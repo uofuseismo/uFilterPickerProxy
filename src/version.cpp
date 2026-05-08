@@ -1,5 +1,5 @@
 #include <string>
-#include "uFilterPickerProxy/version.hpp"
+#include "uFilterPickerMessageStore/version.hpp"
 
 using namespace UFilterPickerProxy;
 

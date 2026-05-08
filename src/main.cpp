@@ -10,9 +10,9 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/logger.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
-#include "uFilterPickerProxy/proxy.hpp"
-#include "uFilterPickerProxy/proxyOptions.hpp"
-#include "uFilterPickerProxy/metricsSingleton.hpp"
+#include "uFilterPickerMessageStore/proxy.hpp"
+#include "uFilterPickerMessageStore/proxyOptions.hpp"
+#include "uFilterPickerMessageStore/metricsSingleton.hpp"
 
 namespace
 {

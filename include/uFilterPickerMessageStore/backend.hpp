@@ -11,7 +11,7 @@ namespace UFilterPickerProxy
 {
  class Database;
  class BackendOptions;
- class SubscriptionManager;
+ class PickStore;
 }
 
 namespace UFilterPickerProxy
@@ -24,14 +24,11 @@ class Backend
 {
 public:
     /// @brief Constructor.
-    /// @param[in] options        The backend's options.
-    /// @param[in] manager        The subscription manager for the backend.
-    /// @param[in] restoredPicks  Picks that were loaded from the database
-    ///                           for when the proxy was restored.
-    /// @param[in] logger         The logging utility.
+    /// @param[in] options   The backend's options.
+    /// @param[in] store     The pick store for the backend.
+    /// @param[in] logger    The logging utility.
     Backend(const BackendOptions &options,
-            std::unique_ptr<SubscriptionManager> &&manager,
-            std::vector<UFilterPickerProxyAPI::V1::Pick> &picks,
+            std::unique_ptr<PickStore> &&store,
             std::shared_ptr<spdlog::logger> logger);
 
     /// @brief Starts the backend's pick publishing.

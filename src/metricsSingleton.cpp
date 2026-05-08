@@ -2,7 +2,7 @@
 #include <atomic>
 #include <mutex>
 #include <algorithm>
-#include "uFilterPickerProxy/metricsSingleton.hpp"
+#include "uFilterPickerMessageStore/metricsSingleton.hpp"
 
 using namespace UFilterPickerProxy;
 

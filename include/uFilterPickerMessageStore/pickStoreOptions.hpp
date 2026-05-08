@@ -1,38 +1,38 @@
-#ifndef UFILTER_PICKER_PROXY_SUBSCRIPTION_MANAGER_OPTIONS_HPP
-#define UFILTER_PICKER_PROXY_SUBSCRIPTION_MANAGER_OPTIONS_HPP
+#ifndef UFILTER_PICKER_PROXY_PICK_STORE_OPTIONS_HPP
+#define UFILTER_PICKER_PROXY_PICK_STORE_OPTIONS_HPP
 #include <memory>
 namespace UFilterPickerProxy
 {
-/// @class SubscriptionManagerOptions subscriptionManagerOptions.hpp
-/// @brief Defines the behavior of the subscription manager.
+/// @class PickStoreOptions pickStoreOptions.hpp
+/// @brief Defines the behavior of the pick store.
 /// @copyright Ben Baker (University of Utah) distributed under the
-///            MIT NO AI license. 
-class SubscriptionManagerOptions
+///            MIT NO AI license.
+class PickStoreOptions
 {
 public:
     /// @brief Constructor.
-    SubscriptionManagerOptions();
+    PickStoreOptions();
     /// @brief Copy constructor.
-    SubscriptionManagerOptions(const SubscriptionManagerOptions &options);
+    PickStoreOptions(const PickStoreOptions &options);
     /// @brief Move constructor.
-    SubscriptionManagerOptions(SubscriptionManagerOptions &&options) noexcept;
+    PickStoreOptions(PickStoreOptions &&options) noexcept;
 
     /// @brief Sets the maximum message queue size.
     /// @param[in] maximumQueueSize  The maximum number of pick messages that
     ///                              can be stored in the queue.
     void setMaximumQueueSize(int maximumQueueSize);
-    /// @return The maximum queue size.  
+    /// @return The maximum queue size.
     [[nodiscard]] int getMaximumQueueSize() const noexcept;
 
     /// @brief Destructor.
-    ~SubscriptionManagerOptions();
+    ~PickStoreOptions();
     /// @brief Copy assignment.
-    SubscriptionManagerOptions& operator=(const SubscriptionManagerOptions &options);
+    PickStoreOptions& operator=(const PickStoreOptions &options);
     /// @brief Move assignment.
-    SubscriptionManagerOptions& operator=(SubscriptionManagerOptions &&options) noexcept;
+    PickStoreOptions& operator=(PickStoreOptions &&options) noexcept;
 private:
-    class SubscriptionManagerOptionsImpl;
-    std::unique_ptr<SubscriptionManagerOptionsImpl> pImpl;
+    class PickStoreOptionsImpl;
+    std::unique_ptr<PickStoreOptionsImpl> pImpl;
 };
 }
 #endif

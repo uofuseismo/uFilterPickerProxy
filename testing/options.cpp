@@ -2,11 +2,11 @@
 #include <string>
 #include <optional>
 #include <catch2/catch_test_macros.hpp>
-#include "uFilterPickerProxy/grpcServerOptions.hpp"
-#include "uFilterPickerProxy/frontendOptions.hpp"
-#include "uFilterPickerProxy/backendOptions.hpp"
-#include "uFilterPickerProxy/proxyOptions.hpp"
-#include "uFilterPickerProxy/subscriptionManagerOptions.hpp"
+#include "uFilterPickerMessageStore/grpcServerOptions.hpp"
+#include "uFilterPickerMessageStore/frontendOptions.hpp"
+#include "uFilterPickerMessageStore/backendOptions.hpp"
+#include "uFilterPickerMessageStore/proxyOptions.hpp"
+#include "uFilterPickerMessageStore/pickStoreOptions.hpp"
 
 TEST_CASE("UFilterPickerProxy", "[grpcServerOptions]")
 {
@@ -166,21 +166,21 @@ TEST_CASE("UFilterPickerProxy", "[ProxyOptions]")
     }
 }
 
-TEST_CASE("UFilterPickerProxy", "[SubscriptionManagerOptions]")
+TEST_CASE("UFilterPickerProxy", "[PickStoreOptions]")
 {
     SECTION("Defaults")
     {
-        const UFilterPickerProxy::SubscriptionManagerOptions options;
+        const UFilterPickerProxy::PickStoreOptions options;
         REQUIRE(options.getMaximumQueueSize() == 2048);
     }
     SECTION("Options")
     {
         constexpr int maxQueueSize{732};
-        UFilterPickerProxy::SubscriptionManagerOptions options;
+        UFilterPickerProxy::PickStoreOptions options;
         REQUIRE_THROWS(options.setMaximumQueueSize(0));
         REQUIRE_NOTHROW(options.setMaximumQueueSize(maxQueueSize));
 
-        const UFilterPickerProxy::SubscriptionManagerOptions copy{options};
+        const UFilterPickerProxy::PickStoreOptions copy{options};
         REQUIRE(options.getMaximumQueueSize() == maxQueueSize);
     }
 }

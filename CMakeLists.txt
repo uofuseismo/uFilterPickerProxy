@@ -73,7 +73,7 @@ else()
    set(uFilterPickerProxy_GITTAG "")
 endif()
 configure_file(${CMAKE_SOURCE_DIR}/src/version.hpp.in
-               ${CMAKE_SOURCE_DIR}/include/uFilterPickerProxy/version.hpp)
+               ${CMAKE_SOURCE_DIR}/include/uFilterPickerMessageStore/version.hpp)
 
 set(LIBRARY_SRC
     src/backendOptions.cpp
@@ -85,8 +85,8 @@ set(LIBRARY_SRC
     src/metricsSingleton.cpp
     src/proxy.cpp
     src/proxyOptions.cpp
-    src/subscriptionManager.cpp
-    src/subscriptionManagerOptions.cpp
+    src/pickStore.cpp
+    src/pickStoreOptions.cpp
     src/version.cpp)
 set(PROTO_SRC
     uFilterPickerProxyAPI/v1/stream_identifier.proto
@@ -97,17 +97,17 @@ set(PROTO_SRC
     uFilterPickerProxyAPI/v1/publish_response.proto
     )   
 set(LIBRARY_HEADER_FILES 
-    include/uFilterPickerProxy/backendOptions.hpp
-    include/uFilterPickerProxy/database.hpp
-    include/uFilterPickerProxy/exception.hpp
-    include/uFilterPickerProxy/grpcServerOptions.hpp
-    include/uFilterPickerProxy/frontend.hpp
-    include/uFilterPickerProxy/frontendOptions.hpp
-    include/uFilterPickerProxy/metricsSingleton.hpp
-    include/uFilterPickerProxy/proxyOptions.hpp
-    include/uFilterPickerProxy/subscriptionManager.hpp
-    include/uFilterPickerProxy/subscriptionManagerOptions.hpp
-    include/uFilterPickerProxy/version.hpp)
+    include/uFilterPickerMessageStore/backendOptions.hpp
+    include/uFilterPickerMessageStore/database.hpp
+    include/uFilterPickerMessageStore/exception.hpp
+    include/uFilterPickerMessageStore/grpcServerOptions.hpp
+    include/uFilterPickerMessageStore/frontend.hpp
+    include/uFilterPickerMessageStore/frontendOptions.hpp
+    include/uFilterPickerMessageStore/metricsSingleton.hpp
+    include/uFilterPickerMessageStore/proxyOptions.hpp
+    include/uFilterPickerMessageStore/pickStore.hpp
+    include/uFilterPickerMessageStore/pickStoreOptions.hpp
+    include/uFilterPickerMessageStore/version.hpp)
 
 add_library(libuFilterPickerProxy STATIC ${LIBRARY_SRC} ${PROTO_SRC})
 add_library(uFilterPickerProxy::libuFilterPickerProxy ALIAS libuFilterPickerProxy)

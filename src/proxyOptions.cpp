@@ -1,10 +1,10 @@
 #include <memory>
 #include <utility>
 #include <stdexcept>
-#include "uFilterPickerProxy/proxyOptions.hpp"
-#include "uFilterPickerProxy/frontendOptions.hpp"
-#include "uFilterPickerProxy/backendOptions.hpp"
-#include "uFilterPickerProxy/grpcServerOptions.hpp"
+#include "uFilterPickerMessageStore/proxyOptions.hpp"
+#include "uFilterPickerMessageStore/frontendOptions.hpp"
+#include "uFilterPickerMessageStore/backendOptions.hpp"
+#include "uFilterPickerMessageStore/grpcServerOptions.hpp"
 
 using namespace UFilterPickerProxy;
 

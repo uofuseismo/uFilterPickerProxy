@@ -8,7 +8,7 @@
 #define uFilterPickerProxy_VERSION "@PROJECT_VERSION@"
 namespace UFilterPickerProxy
 {
-/// @class Version version.hpp "uFilterPickerProxy/version.hpp"
+/// @class Version version.hpp "uFilterPickerMessageStore/version.hpp"
 /// @brief Defines the library's version information.
 /// @copyright Ben Baker (University of Utah) distributed under the MIT license.
 class Version

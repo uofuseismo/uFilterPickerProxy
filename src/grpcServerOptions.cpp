@@ -4,7 +4,7 @@
 #include <string>
 #include <stdexcept>
 #include <memory>
-#include "uFilterPickerProxy/grpcServerOptions.hpp"
+#include "uFilterPickerMessageStore/grpcServerOptions.hpp"
 
 using namespace UFilterPickerProxy;
 

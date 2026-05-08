@@ -1,12 +1,13 @@
-#ifndef UFILTER_PICKER_PROXY_SUBSCRIPTION_MANAGER_HPP
-#define UFILTER_PICKER_PROXY_SUBSCRIPTION_MANAGER_HPP
+#ifndef UFILTER_PICKER_PROXY_PICK_STORE_HPP
+#define UFILTER_PICKER_PROXY_PICK_STORE_HPP
 #include <memory>
 #include <vector>
 #include <optional>
+#include <chrono>
 #include <spdlog/logger.h>
 namespace UFilterPickerProxy
 {
- class SubscriptionManagerOptions;
+ class PickStoreOptions;
 }
 namespace UFilterPickerProxyAPI::V1
 {
@@ -14,28 +15,46 @@ namespace UFilterPickerProxyAPI::V1
 }
 namespace UFilterPickerProxy
 {
-/// @class SubscriptionManager subscriptionManager.hpp
-/// @brief Manages subscribers to the pick streams.
+/// @class PickStore pickStore.hpp
+/// @brief Manages and publishes picks to real-time pick subscribers.
 /// @copyright Ben Baker (University of Utah) distributed under the MIT
 ///            NO AI license.
-class SubscriptionManager
+class PickStore
 {
 public:
     /// @brief Constructor.
-    /// @param[in] options  The options that define the subscription manager's
-    ///                     behavior. 
+    /// @param[in] options  The options that define the pick store's behavior.
     /// @param[in] logger   The logger.
-    SubscriptionManager(const SubscriptionManagerOptions &options, 
-                        std::shared_ptr<spdlog::logger> logger);
+    PickStore(const PickStoreOptions &options,
+              std::shared_ptr<spdlog::logger> logger);
+    PickStore(const PickStoreOptions &options,
+              std::vector<std::pair<std::chrono::nanoseconds, UFilterPickerProxyAPI::V1::Pick>> &backfillPicks,
+              std::shared_ptr<spdlog::logger> logger);
 
-    /// @brief Enqueues the next pick for publication.
+    /// @name Publisher Utilities
+    /// @{
+
+    /// @brief Enqueues the next pick for publication to all subscribers.
     /// @param[in,out] pick   The pick to send to subscribers.
     void enqueue(UFilterPickerProxyAPI::V1::Pick &&pick);
+    /// @}
+
+    /// @name Subscriber Utilities
+    /// @{
 
     /// @brief Subscribes the context to the pick stream.
     /// @param[in] contextAddress  The memory address of the context that is
     ///                            subscribing.
+    /// @param[in] startTime       Picks received after this time will be streamed.
+    /// @throws std::invalid_argument if startTime exceeds the current time.
+    void subscribe(uintptr_t contextAddress,
+                   const std::chrono::nanoseconds &startTime);
+    /// @brief Subscribes the context to the pick stream and begins receiving all
+    ///        newly acquired pick messages.
+    /// @param[in] contextAddress  The memory address of the context that is
+    ///                            subscribing.
     void subscribe(uintptr_t contextAddress);
+
     /// @brief Unsubscribes the context from the pick stream.
     /// @param[in] contextAddress  The memory address of the context that is
     ///                            unsubscribing.
@@ -45,23 +64,17 @@ public:
     /// @param contextAddress  The subscribing context address.
     /// @return The latest picks to send to the subscriber.
     [[nodiscard]] std::vector<UFilterPickerProxyAPI::V1::Pick> getPicks(uintptr_t contextAddress) const;
-    /// @brief Allows the subscribing thread to get all picks since a certain time.
-    /// @param contextAddress  The subscribing conext address.
-    /// @param[in] time        Picks including and greater than this time will be
-    ///                        returned to the subscriber.
-    /// @return All picks that have been collected since the given time. 
-    /// @note This is useful on a startup to accomplish backfill.
-    [[nodiscard]] std::vector<UFilterPickerProxyAPI::V1::Pick> getPicksSince(uintptr_t contextAddress, const std::chrono::nanoseconds &time) const;
+    /// @}
 
     /// @brief  Destructor.
-    ~SubscriptionManager();
-    SubscriptionManager(const SubscriptionManager &) = delete;
-    SubscriptionManager(SubscriptionManager &&) noexcept = delete;
-    SubscriptionManager& operator=(const SubscriptionManager &) = delete;
-    SubscriptionManager& operator=(SubscriptionManager &&) noexcept = delete;
+    ~PickStore();
+    PickStore(const PickStore &) = delete;
+    PickStore(PickStore &&) noexcept = delete;
+    PickStore& operator=(const PickStore &) = delete;
+    PickStore& operator=(PickStore &&) noexcept = delete;
 private:
-    class SubscriptionManagerImpl;
-    std::unique_ptr<SubscriptionManagerImpl> pImpl;
+    class PickStoreImpl;
+    std::unique_ptr<PickStoreImpl> pImpl;
 };
 }
 #endif

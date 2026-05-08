@@ -1,48 +1,48 @@
 #include <utility>
 #include <memory>
 #include <stdexcept>
-#include "uFilterPickerProxy/subscriptionManagerOptions.hpp"
+#include "uFilterPickerMessageStore/pickStoreOptions.hpp"
 
 using namespace UFilterPickerProxy;
 
-class SubscriptionManagerOptions::SubscriptionManagerOptionsImpl
+class PickStoreOptions::PickStoreOptionsImpl
 {
 public:
     int mMaximumQueueSize{2048};
 };
 
 /// Constructor
-SubscriptionManagerOptions::SubscriptionManagerOptions() :
-    pImpl(std::make_unique<SubscriptionManagerOptionsImpl> ()) 
+PickStoreOptions::PickStoreOptions() :
+    pImpl(std::make_unique<PickStoreOptionsImpl> ())
 {
 }
 
 /// Copy constructor
-SubscriptionManagerOptions::SubscriptionManagerOptions(
-    const SubscriptionManagerOptions &options)
+PickStoreOptions::PickStoreOptions(
+    const PickStoreOptions &options)
 {
     *this = options;
 }
 
-/// Copy constructor
-SubscriptionManagerOptions::SubscriptionManagerOptions(
-    SubscriptionManagerOptions &&options) noexcept
+/// Move constructor
+PickStoreOptions::PickStoreOptions(
+    PickStoreOptions &&options) noexcept
 {
     *this = std::move(options);
 }
 
 /// Copy assignment
-SubscriptionManagerOptions &SubscriptionManagerOptions::operator=(
-    const SubscriptionManagerOptions &options)
+PickStoreOptions &PickStoreOptions::operator=(
+    const PickStoreOptions &options)
 {
     if (&options == this){return *this;}
-    pImpl = std::make_unique<SubscriptionManagerOptionsImpl> (*options.pImpl);
+    pImpl = std::make_unique<PickStoreOptionsImpl> (*options.pImpl);
     return *this;
 }
 
 /// Move assignment
-SubscriptionManagerOptions &SubscriptionManagerOptions::operator=(
-    SubscriptionManagerOptions &&options) noexcept
+PickStoreOptions &PickStoreOptions::operator=(
+    PickStoreOptions &&options) noexcept
 {
     if (&options == this){return *this;}
     pImpl = std::move (options.pImpl);
@@ -50,10 +50,10 @@ SubscriptionManagerOptions &SubscriptionManagerOptions::operator=(
 }
 
 /// Destructor
-SubscriptionManagerOptions::~SubscriptionManagerOptions() = default;
+PickStoreOptions::~PickStoreOptions() = default;
 
 /// Maximum queue size
-void SubscriptionManagerOptions::setMaximumQueueSize(const int maxSize)
+void PickStoreOptions::setMaximumQueueSize(const int maxSize)
 {
     if (maxSize < 1)
     {
@@ -62,7 +62,7 @@ void SubscriptionManagerOptions::setMaximumQueueSize(const int maxSize)
     pImpl->mMaximumQueueSize = maxSize;
 }
 
-int SubscriptionManagerOptions::getMaximumQueueSize() const noexcept
+int PickStoreOptions::getMaximumQueueSize() const noexcept
 {
     return pImpl->mMaximumQueueSize;
 }

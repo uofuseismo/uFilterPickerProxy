@@ -15,8 +15,8 @@
 #include <spdlog/logger.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <google/protobuf/util/time_util.h>
-#include "uFilterPickerProxy/database.hpp"
-#include "uFilterPickerProxy/exception.hpp"
+#include "uFilterPickerMessageStore/database.hpp"
+#include "uFilterPickerMessageStore/exception.hpp"
 #include <uFilterPickerProxyAPI/v1/pick.pb.h>
 #include <uFilterPickerProxyAPI/v1/phase_hint.pb.h>
 #include <uFilterPickerProxyAPI/v1/stream_identifier.pb.h>

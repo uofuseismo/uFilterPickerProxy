@@ -1,8 +1,8 @@
 #include <memory>
 #include <utility>
 #include <stdexcept>
-#include "uFilterPickerProxy/backendOptions.hpp"
-#include "uFilterPickerProxy/grpcServerOptions.hpp"
+#include "uFilterPickerMessageStore/backendOptions.hpp"
+#include "uFilterPickerMessageStore/grpcServerOptions.hpp"
 
 using namespace UFilterPickerProxy;
 

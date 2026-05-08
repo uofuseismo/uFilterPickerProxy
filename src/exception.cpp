@@ -1,5 +1,5 @@
 #include <string>
-#include "uFilterPickerProxy/exception.hpp"
+#include "uFilterPickerMessageStore/exception.hpp"
 
 using namespace UFilterPickerProxy;
 

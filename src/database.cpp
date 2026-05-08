@@ -25,8 +25,8 @@
 #include <uFilterPickerProxyAPI/v1/stream_identifier.pb.h>
 #include <uFilterPickerProxyAPI/v1/phase_hint.pb.h>
 #include <uFilterPickerProxyAPI/v1/algorithm.pb.h>
-#include "uFilterPickerProxy/database.hpp"
-#include "uFilterPickerProxy/exception.hpp"
+#include "uFilterPickerMessageStore/database.hpp"
+#include "uFilterPickerMessageStore/exception.hpp"
 
 #define N_PHASE_HINTS 3
 

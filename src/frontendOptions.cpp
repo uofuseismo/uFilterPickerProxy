@@ -3,8 +3,8 @@
 #include <stdexcept>
 #include <cstdint>
 #include <optional>
-#include "uFilterPickerProxy/frontendOptions.hpp"
-#include "uFilterPickerProxy/grpcServerOptions.hpp"
+#include "uFilterPickerMessageStore/frontendOptions.hpp"
+#include "uFilterPickerMessageStore/grpcServerOptions.hpp"
 
 using namespace UFilterPickerProxy;
 

@@ -21,11 +21,11 @@
 #include <grpcpp/security/server_credentials.h>
 #include <grpcpp/support/status.h>
 #include <grpcpp/support/server_callback.h>
-#include "uFilterPickerProxy/exception.hpp"
-#include "uFilterPickerProxy/frontend.hpp"
-#include "uFilterPickerProxy/frontendOptions.hpp"
-#include "uFilterPickerProxy/grpcServerOptions.hpp"
-#include "uFilterPickerProxy/metricsSingleton.hpp"
+#include "uFilterPickerMessageStore/exception.hpp"
+#include "uFilterPickerMessageStore/frontend.hpp"
+#include "uFilterPickerMessageStore/frontendOptions.hpp"
+#include "uFilterPickerMessageStore/grpcServerOptions.hpp"
+#include "uFilterPickerMessageStore/metricsSingleton.hpp"
 #include "uFilterPickerProxyAPI/v1/frontend.grpc.pb.h"
 #include "uFilterPickerProxyAPI/v1/pick.pb.h"
 #include "uFilterPickerProxyAPI/v1/publish_response.pb.h"
