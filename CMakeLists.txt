@@ -85,6 +85,8 @@ set(LIBRARY_SRC
     src/metricsSingleton.cpp
     src/proxy.cpp
     src/proxyOptions.cpp
+    src/subscriptionManager.cpp
+    src/subscriptionManagerOptions.cpp
     src/version.cpp)
 set(PROTO_SRC
     uFilterPickerProxyAPI/v1/stream_identifier.proto
@@ -103,6 +105,8 @@ set(LIBRARY_HEADER_FILES
     include/uFilterPickerProxy/frontendOptions.hpp
     include/uFilterPickerProxy/metricsSingleton.hpp
     include/uFilterPickerProxy/proxyOptions.hpp
+    include/uFilterPickerProxy/subscriptionManager.hpp
+    include/uFilterPickerProxy/subscriptionManagerOptions.hpp
     include/uFilterPickerProxy/version.hpp)
 
 add_library(libuFilterPickerProxy STATIC ${LIBRARY_SRC} ${PROTO_SRC})

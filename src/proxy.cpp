@@ -28,6 +28,8 @@
 #include "uFilterPickerProxy/backend.hpp"
 #include "uFilterPickerProxy/backendOptions.hpp"
 #include "uFilterPickerProxy/metricsSingleton.hpp"
+#include "uFilterPickerProxy/subscriptionManager.hpp"
+#include "uFilterPickerProxy/subscriptionManagerOptions.hpp"
 #include "uFilterPickerProxy/exception.hpp"
 #include "uFilterPickerProxyAPI/v1/pick.pb.h"
 #include "uFilterPickerProxyAPI/v1/algorithm.pb.h"
@@ -165,10 +167,12 @@ public:
         // No point loading more picks than we can buffer on output
         const auto maxPicksToLoad = backendOptions.getQueueCapacity();
         auto loadedPicks = mDatabase->getMostRecentlySubmittedPicks(maxPicksToLoad);
+        /*
         mBackend 
             = std::make_unique<Backend> (mOptions.getBackendOptions(),
                                          loadedPicks,
                                          mLogger);
+        */
     }
 
     /// Stop the proxy

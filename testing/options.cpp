@@ -6,6 +6,7 @@
 #include "uFilterPickerProxy/frontendOptions.hpp"
 #include "uFilterPickerProxy/backendOptions.hpp"
 #include "uFilterPickerProxy/proxyOptions.hpp"
+#include "uFilterPickerProxy/subscriptionManagerOptions.hpp"
 
 TEST_CASE("UFilterPickerProxy", "[grpcServerOptions]")
 {
@@ -162,5 +163,24 @@ TEST_CASE("UFilterPickerProxy", "[ProxyOptions]")
         REQUIRE(options.getBackendOptions().getGRPCOptions().getPort() == bePort);
         REQUIRE(options.getQueueCapacity() == queueCapacity);
 
+    }
+}
+
+TEST_CASE("UFilterPickerProxy", "[SubscriptionManagerOptions]")
+{
+    SECTION("Defaults")
+    {
+        const UFilterPickerProxy::SubscriptionManagerOptions options;
+        REQUIRE(options.getMaximumQueueSize() == 2048);
+    }
+    SECTION("Options")
+    {
+        constexpr int maxQueueSize{732};
+        UFilterPickerProxy::SubscriptionManagerOptions options;
+        REQUIRE_THROWS(options.setMaximumQueueSize(0));
+        REQUIRE_NOTHROW(options.setMaximumQueueSize(maxQueueSize));
+
+        const UFilterPickerProxy::SubscriptionManagerOptions copy{options};
+        REQUIRE(options.getMaximumQueueSize() == maxQueueSize);
     }
 }
