@@ -1,12 +1,12 @@
-#ifndef UFILTER_PICKER_PROXY_VERSION_HPP
-#define UFILTER_PICKER_PROXY_VERSION_HPP
+#ifndef UFILTER_PICKER_MESSAGE_STORE_VERSION_HPP
+#define UFILTER_PICKER_MESSAGE_STORE_VERSION_HPP
 #include <string>
-#define uFilterPickerProxy_MAJOR  @uFilterPickerProxy_VERSION_MAJOR@
-#define uFilterPickerProxy_MINOR  @uFilterPickerProxy_VERSION_MINOR@
-#define uFilterPickerProxy_PATCH  @uFilterPickerProxy_VERSION_PATCH@
-#define uFilterPickerProxy_GITTAG "@uFilterPickerProxy_GITTAG@"
-#define uFilterPickerProxy_VERSION "@PROJECT_VERSION@"
-namespace UFilterPickerProxy
+#define uFilterPickerMessageStore_MAJOR  @uFilterPickerMessageStore_VERSION_MAJOR@
+#define uFilterPickerMessageStore_MINOR  @uFilterPickerMessageStore_VERSION_MINOR@
+#define uFilterPickerMessageStore_PATCH  @uFilterPickerMessageStore_VERSION_PATCH@
+#define uFilterPickerMessageStore_GITTAG "@uFilterPickerMessageStore_GITTAG@"
+#define uFilterPickerMessageStore_VERSION "@PROJECT_VERSION@"
+namespace UFilterPickerMessageStore
 {
 /// @class Version version.hpp "uFilterPickerMessageStore/version.hpp"
 /// @brief Defines the library's version information.
