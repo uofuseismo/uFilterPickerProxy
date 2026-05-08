@@ -3,7 +3,7 @@
 #include <spdlog/logger.h>
 #include <memory>
 #include <functional>
-namespace UFilterPickerProxyAPI::V1
+namespace UFilterPickerMessageStoreAPI::V1
 {
  class Pick;
 }
@@ -26,7 +26,7 @@ public:
     /// @param[in] callback  The callback that allows picks to propagated.
     /// @param[in] logger    The logging utility.
     Frontend(const FrontendOptions &options,
-             const std::function<void (UFilterPickerProxyAPI::V1::Pick &&)> &callback,
+             const std::function<void (UFilterPickerMessageStoreAPI::V1::Pick &&)> &callback,
              std::shared_ptr<spdlog::logger> logger);
 
     /// @brief Starts the frontend's pick acquisition.

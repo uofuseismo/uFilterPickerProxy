@@ -21,10 +21,10 @@
 #include <spdlog/logger.h>
 #include <spdlog/sinks/stdout_color_sinks.h> //NOLINT
 #include <google/protobuf/util/time_util.h>
-#include <uFilterPickerProxyAPI/v1/pick.pb.h>
-#include <uFilterPickerProxyAPI/v1/stream_identifier.pb.h>
-#include <uFilterPickerProxyAPI/v1/phase_hint.pb.h>
-#include <uFilterPickerProxyAPI/v1/algorithm.pb.h>
+#include <uFilterPickerMessageStoreAPI/v1/pick.pb.h>
+#include <uFilterPickerMessageStoreAPI/v1/stream_identifier.pb.h>
+#include <uFilterPickerMessageStoreAPI/v1/phase_hint.pb.h>
+#include <uFilterPickerMessageStoreAPI/v1/algorithm.pb.h>
 #include "uFilterPickerMessageStore/database.hpp"
 #include "uFilterPickerMessageStore/exception.hpp"
 
@@ -454,7 +454,7 @@ CREATE TABLE picks(
 
     /// @result The stream identifier
     [[nodiscard]] int getStreamIdentifier(
-        const UFilterPickerProxyAPI::V1::StreamIdentifier &identifier) const
+        const UFilterPickerMessageStoreAPI::V1::StreamIdentifier &identifier) const
     {
         int streamIdentifier{-1};
         const auto network = ::removeBlanksAndCapitalize(identifier.network());
@@ -530,7 +530,7 @@ INSERT INTO streams(network, station, channel, location_code)
 
     /// @result The algorithm identifier
     [[nodiscard]] int getAlgorithmIdentifier(
-        const UFilterPickerProxyAPI::V1::Algorithm &algorithm) const
+        const UFilterPickerMessageStoreAPI::V1::Algorithm &algorithm) const
     {   
         int algorithmIdentifier{-1};
         const auto name = ::removeBlanksAndLowerCase(algorithm.name());
@@ -599,7 +599,7 @@ INSERT INTO algorithms(name, version, tag) VALUES(?, ?, ?) RETURNING identifier;
     }
 
     /// @result True indicates the pick exists
-    [[nodiscard]] bool pickExists(const UFilterPickerProxyAPI::V1::Pick &pick) const
+    [[nodiscard]] bool pickExists(const UFilterPickerMessageStoreAPI::V1::Pick &pick) const
     {
         const auto streamIdentifier
             = getStreamIdentifier(pick.stream_identifier());
@@ -676,7 +676,7 @@ SELECT COUNT(*) FROM picks WHERE stream = ? AND time = ? AND phase_hint = ? AND 
     }
 
     /// @brief Attempts to add the pick to the database
-    void add(const UFilterPickerProxyAPI::V1::Pick &pick)
+    void add(const UFilterPickerMessageStoreAPI::V1::Pick &pick)
     {
         if (!isOpen()){throw std::runtime_error("Database not open");}
         if (isReadOnly()){throw std::runtime_error("Database is read-only");}
@@ -787,9 +787,9 @@ INSERT INTO picks(stream, time, phase_hint, algorithm, proto) VALUES(?, ?, ?, ?,
     /// @Result Gets the phase hint identifier
     [[nodiscard]] 
     int getPhaseHintIdentifier(
-        const UFilterPickerProxyAPI::V1::PhaseHint phaseHint) const
+        const UFilterPickerMessageStoreAPI::V1::PhaseHint phaseHint) const
     {
-        namespace UFPAPI = UFilterPickerProxyAPI::V1;
+        namespace UFPAPI = UFilterPickerMessageStoreAPI::V1;
         if (phaseHint == UFPAPI::PhaseHint::PHASE_HINT_P)
         {
             return mPhaseHintMap.at("P");
@@ -848,7 +848,7 @@ INSERT INTO picks(stream, time, phase_hint, algorithm, proto) VALUES(?, ?, ?, ?,
         }
     }
 
-    [[nodiscard]] std::vector<UFilterPickerProxyAPI::V1::Pick> 
+    [[nodiscard]] std::vector<UFilterPickerMessageStoreAPI::V1::Pick> 
         getAllPicks() const
     {
         constexpr std::chrono::nanoseconds lowest{
@@ -857,11 +857,11 @@ INSERT INTO picks(stream, time, phase_hint, algorithm, proto) VALUES(?, ?, ?, ?,
         return getPicksSince(lowest);
     }
 
-    [[nodiscard]] std::vector<UFilterPickerProxyAPI::V1::Pick> 
+    [[nodiscard]] std::vector<UFilterPickerMessageStoreAPI::V1::Pick> 
         getPicksSince(const std::chrono::nanoseconds &startTime) const
     {
         if (!isOpen()){throw std::runtime_error("Database not open");}
-        std::vector<UFilterPickerProxyAPI::V1::Pick> result;
+        std::vector<UFilterPickerMessageStoreAPI::V1::Pick> result;
         const std::string querySQL{
 R"""(
 SELECT proto FROM picks WHERE time > ? ORDER BY load_time ASC;
@@ -890,7 +890,7 @@ SELECT proto FROM picks WHERE time > ? ORDER BY load_time ASC;
                   (sqlite3_column_blob(statement, 0));
             const auto pickProtoSize = sqlite3_column_bytes(statement, 0);
             const std::string pickProto(pickProtoBlob, pickProtoSize);
-            UFilterPickerProxyAPI::V1::Pick pick;
+            UFilterPickerMessageStoreAPI::V1::Pick pick;
             if (!pick.ParseFromString(pickProto))
             {
                 throw std::runtime_error("Failed to parse pick proto");
@@ -902,11 +902,11 @@ SELECT proto FROM picks WHERE time > ? ORDER BY load_time ASC;
         return result;
     }    
 
-    [[nodiscard]] std::vector<UFilterPickerProxyAPI::V1::Pick> 
+    [[nodiscard]] std::vector<UFilterPickerMessageStoreAPI::V1::Pick> 
         getMostRecentlySubmittedPicks(const int limit) const
     {
         if (!isOpen()){throw std::runtime_error("Database not open");}
-        std::vector<UFilterPickerProxyAPI::V1::Pick> result;
+        std::vector<UFilterPickerMessageStoreAPI::V1::Pick> result;
         const std::string querySQL{
 R"""(
 SELECT proto FROM picks ORDER BY load_time DESC LIMIT ?;
@@ -933,7 +933,7 @@ SELECT proto FROM picks ORDER BY load_time DESC LIMIT ?;
                   (sqlite3_column_blob(statement, 0));
             const auto pickProtoSize = sqlite3_column_bytes(statement, 0);
             const std::string pickProto(pickProtoBlob, pickProtoSize);
-            UFilterPickerProxyAPI::V1::Pick pick;
+            UFilterPickerMessageStoreAPI::V1::Pick pick;
             if (!pick.ParseFromString(pickProto))
             {
                 throw std::runtime_error("Failed to parse pick proto");
@@ -1018,7 +1018,7 @@ bool Database::isOpen() const noexcept
     return pImpl->isOpen();
 }
 
-void Database::add(const UFilterPickerProxyAPI::V1::Pick &pick)
+void Database::add(const UFilterPickerMessageStoreAPI::V1::Pick &pick)
 {
     if (!pick.has_stream_identifier())
     {
@@ -1062,7 +1062,7 @@ void Database::add(const UFilterPickerProxyAPI::V1::Pick &pick)
 }
 
 /// All picks currently in the database.
-std::vector<UFilterPickerProxyAPI::V1::Pick> Database::getAllPicks() const
+std::vector<UFilterPickerMessageStoreAPI::V1::Pick> Database::getAllPicks() const
 {
     if (!isOpen())
     {
@@ -1072,7 +1072,7 @@ std::vector<UFilterPickerProxyAPI::V1::Pick> Database::getAllPicks() const
 }
 
 /// The picks in the database whose time exceeds the given value.
-std::vector<UFilterPickerProxyAPI::V1::Pick> Database::getPicksSince(
+std::vector<UFilterPickerMessageStoreAPI::V1::Pick> Database::getPicksSince(
     const std::chrono::nanoseconds &startTime) const
 {
     if (!isOpen())
@@ -1083,7 +1083,7 @@ std::vector<UFilterPickerProxyAPI::V1::Pick> Database::getPicksSince(
 }
 
 /// Get the most recently submitted picks
-std::vector<UFilterPickerProxyAPI::V1::Pick> 
+std::vector<UFilterPickerMessageStoreAPI::V1::Pick> 
 Database::getMostRecentlySubmittedPicks(const int limit) const
 {
 
@@ -1093,7 +1093,7 @@ Database::getMostRecentlySubmittedPicks(const int limit) const
     }
     if (limit == 0)
     {
-        return std::vector<UFilterPickerProxyAPI::V1::Pick> {};
+        return std::vector<UFilterPickerMessageStoreAPI::V1::Pick> {};
     }
     if (!isOpen())
     {
@@ -1102,7 +1102,7 @@ Database::getMostRecentlySubmittedPicks(const int limit) const
     pImpl->getMostRecentlySubmittedPicks(limit);
 }
 
-std::vector<UFilterPickerProxyAPI::V1::Pick> 
+std::vector<UFilterPickerMessageStoreAPI::V1::Pick> 
 Database::getMostRecentlySubmittedPicks() const
 {
     return getMostRecentlySubmittedPicks(std::numeric_limits<int>::max());

@@ -26,9 +26,9 @@
 #include "uFilterPickerMessageStore/frontendOptions.hpp"
 #include "uFilterPickerMessageStore/grpcServerOptions.hpp"
 #include "uFilterPickerMessageStore/metricsSingleton.hpp"
-#include "uFilterPickerProxyAPI/v1/frontend.grpc.pb.h"
-#include "uFilterPickerProxyAPI/v1/pick.pb.h"
-#include "uFilterPickerProxyAPI/v1/publish_response.pb.h"
+#include "uFilterPickerMessageStoreAPI/v1/frontend.grpc.pb.h"
+#include "uFilterPickerMessageStoreAPI/v1/pick.pb.h"
+#include "uFilterPickerMessageStoreAPI/v1/publish_response.pb.h"
 
 using namespace UFilterPickerProxy;
 
@@ -55,16 +55,16 @@ bool validatePublisher(const grpc::CallbackServerContext *context,
 
 /// Handles one publisher's client-streaming Publish RPC session.
 class AsynchronousReader :
-    public grpc::ServerReadReactor<UFilterPickerProxyAPI::V1::Pick>
+    public grpc::ServerReadReactor<UFilterPickerMessageStoreAPI::V1::Pick>
 {
 public:
-    using Pick = UFilterPickerProxyAPI::V1::Pick;
-    using PublishResponse = UFilterPickerProxyAPI::V1::PublishResponse;
+    using Pick = UFilterPickerMessageStoreAPI::V1::Pick;
+    using PublishResponse = UFilterPickerMessageStoreAPI::V1::PublishResponse;
 
     AsynchronousReader(
         const FrontendOptions &options,
         grpc::CallbackServerContext *context,
-        const std::function<void (UFilterPickerProxyAPI::V1::Pick &&)> &callback,
+        const std::function<void (UFilterPickerMessageStoreAPI::V1::Pick &&)> &callback,
         PublishResponse *response,
         const std::atomic<bool> *keepRunning,
         std::atomic<int> *publisherCount,
@@ -213,12 +213,12 @@ public:
 
 //private:
     grpc::CallbackServerContext *mContext{nullptr};
-    UFilterPickerProxyAPI::V1::PublishResponse *mResponse{nullptr};
-    std::function<void (UFilterPickerProxyAPI::V1::Pick &&)> mCallback;
+    UFilterPickerMessageStoreAPI::V1::PublishResponse *mResponse{nullptr};
+    std::function<void (UFilterPickerMessageStoreAPI::V1::Pick &&)> mCallback;
     const std::atomic<bool> *mKeepRunning{nullptr};
     std::atomic<int> *mPublisherCount{nullptr};
     std::shared_ptr<spdlog::logger> mLogger;
-    UFilterPickerProxyAPI::V1::Pick mCurrentPick;
+    UFilterPickerMessageStoreAPI::V1::Pick mCurrentPick;
     UFilterPickerProxy::MetricsSingleton &mMetrics
     {
         UFilterPickerProxy::MetricsSingleton::getInstance()
@@ -237,13 +237,13 @@ public:
 }
 
 class Frontend::FrontendImpl :
-    public UFilterPickerProxyAPI::V1::Frontend::CallbackService 
+    public UFilterPickerMessageStoreAPI::V1::Frontend::CallbackService 
 {
 public:
     FrontendImpl
     (
         const FrontendOptions &options,
-        const std::function<void (UFilterPickerProxyAPI::V1::Pick &&)> &callback,
+        const std::function<void (UFilterPickerMessageStoreAPI::V1::Pick &&)> &callback,
         std::shared_ptr<spdlog::logger> logger
     ) :
         mOptions(options),
@@ -331,9 +331,9 @@ public:
     }
 
     /// The RPC
-    grpc::ServerReadReactor<UFilterPickerProxyAPI::V1::Pick>*
+    grpc::ServerReadReactor<UFilterPickerMessageStoreAPI::V1::Pick>*
         Publish(grpc::CallbackServerContext* context,
-                UFilterPickerProxyAPI::V1::PublishResponse *publishResponse) override
+                UFilterPickerMessageStoreAPI::V1::PublishResponse *publishResponse) override
     {
         return new ::AsynchronousReader(
             mOptions, 
@@ -353,7 +353,7 @@ public:
     }
 //private:
     FrontendOptions mOptions;
-    std::function<void (UFilterPickerProxyAPI::V1::Pick &&)> mCallback;
+    std::function<void (UFilterPickerMessageStoreAPI::V1::Pick &&)> mCallback;
     std::shared_ptr<spdlog::logger> mLogger{nullptr};
     std::unique_ptr<grpc::Server> mServer{nullptr};
     std::atomic<int> mPublisherCount{0};
@@ -364,7 +364,7 @@ public:
 /// Constructor
 Frontend::Frontend(
     const FrontendOptions &options,
-    const std::function<void (UFilterPickerProxyAPI::V1::Pick &&)> &callback,
+    const std::function<void (UFilterPickerMessageStoreAPI::V1::Pick &&)> &callback,
     std::shared_ptr<spdlog::logger> logger) :
     pImpl(std::make_unique<FrontendImpl> (options,
                                           callback, 

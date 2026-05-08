@@ -89,12 +89,12 @@ set(LIBRARY_SRC
     src/pickStoreOptions.cpp
     src/version.cpp)
 set(PROTO_SRC
-    uFilterPickerProxyAPI/v1/stream_identifier.proto
-    uFilterPickerProxyAPI/v1/phase_hint.proto
-    uFilterPickerProxyAPI/v1/pick.proto
-    uFilterPickerProxyAPI/v1/algorithm.proto
-    uFilterPickerProxyAPI/v1/frontend.proto
-    uFilterPickerProxyAPI/v1/publish_response.proto
+    uFilterPickerMessageStoreAPI/v1/stream_identifier.proto
+    uFilterPickerMessageStoreAPI/v1/phase_hint.proto
+    uFilterPickerMessageStoreAPI/v1/pick.proto
+    uFilterPickerMessageStoreAPI/v1/algorithm.proto
+    uFilterPickerMessageStoreAPI/v1/frontend.proto
+    uFilterPickerMessageStoreAPI/v1/publish_response.proto
     )   
 set(LIBRARY_HEADER_FILES 
     include/uFilterPickerMessageStore/backendOptions.hpp
@@ -225,9 +225,9 @@ if (PROJECT_IS_TOP_LEVEL AND ${BUILD_TESTS})
    #               testing/utilities.cpp
    #               testing/picker.cpp
    #               testing/grpc.cpp
-                  uFilterPickerProxyAPI/v1/stream_identifier.proto
-                  uFilterPickerProxyAPI/v1/phase_hint.proto
-                  uFilterPickerProxyAPI/v1/pick.proto
+                  uFilterPickerMessageStoreAPI/v1/stream_identifier.proto
+                  uFilterPickerMessageStoreAPI/v1/phase_hint.proto
+                  uFilterPickerMessageStoreAPI/v1/pick.proto
    )
    set_target_properties(unitTests PROPERTIES
                          CXX_STANDARD 23
