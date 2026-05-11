@@ -20,22 +20,22 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/logger.h>
 #include <spdlog/sinks/stdout_color_sinks.h> //NOLINT
-#include "uFilterPickerMessageStore/proxy.hpp"
-#include "uFilterPickerMessageStore/proxyOptions.hpp"
-#include "uFilterPickerMessageStore/database.hpp"
-#include "uFilterPickerMessageStore/frontend.hpp"
-#include "uFilterPickerMessageStore/frontendOptions.hpp"
-#include "uFilterPickerMessageStore/backend.hpp"
-#include "uFilterPickerMessageStore/backendOptions.hpp"
-#include "uFilterPickerMessageStore/metricsSingleton.hpp"
-#include "uFilterPickerMessageStore/pickStore.hpp"
-#include "uFilterPickerMessageStore/pickStoreOptions.hpp"
-#include "uFilterPickerMessageStore/exception.hpp"
+#include "uFilterPickerPickBroker/broker.hpp"
+#include "uFilterPickerPickBroker/brokerOptions.hpp"
+#include "uFilterPickerPickBroker/database.hpp"
+#include "uFilterPickerPickBroker/publishService.hpp"
+#include "uFilterPickerPickBroker/publishServiceOptions.hpp"
+#include "uFilterPickerPickBroker/subscribeService.hpp"
+#include "uFilterPickerPickBroker/subscribeServiceOptions.hpp"
+#include "uFilterPickerPickBroker/metricsSingleton.hpp"
+#include "uFilterPickerPickBroker/pickStore.hpp"
+#include "uFilterPickerPickBroker/pickStoreOptions.hpp"
+#include "uFilterPickerPickBroker/exception.hpp"
 #include "uFilterPickerMessageStoreAPI/v1/pick.pb.h"
 #include "uFilterPickerMessageStoreAPI/v1/algorithm.pb.h"
 #include "uFilterPickerMessageStoreAPI/v1/stream_identifier.pb.h"
 
-using namespace UFilterPickerProxy;
+using namespace UFilterPickerPickBroker;
 
 namespace
 {
@@ -108,17 +108,17 @@ UFilterPickerMessageStoreAPI::V1::Algorithm checkAndFixAlgorithm(
     {
         throw std::invalid_argument("Algorithm version not set");
     }
-    return algorithm;  
+    return algorithm;
 }
 
 }
 
-class Proxy::ProxyImpl
+class Broker::BrokerImpl
 {
 public:
-    ProxyImpl(const ProxyOptions &options,
-              std::unique_ptr<Database> &&database,
-              std::shared_ptr<spdlog::logger> logger) :
+    BrokerImpl(const BrokerOptions &options,
+               std::unique_ptr<Database> &&database,
+               std::shared_ptr<spdlog::logger> logger) :
         mOptions(options),
         mDatabase(std::move(database)),
         mLogger(std::move(logger))
@@ -136,64 +136,62 @@ public:
             throw std::invalid_argument(
                 "Database must be open in read-write mode");
         }
-        if (!mOptions.hasFrontendOptions())
+        if (!mOptions.hasPublishServiceOptions())
         {
-            throw std::invalid_argument("Frontend options not set on proxy");
+            throw std::invalid_argument(
+                "Publish service options not set on broker");
         }
-        if (!mOptions.hasBackendOptions())
+        if (!mOptions.hasSubscribeServiceOptions())
         {
-            throw std::invalid_argument("Backend options not set on proxy");
+            throw std::invalid_argument(
+                "Subscribe service options not set on broker");
         }
         if (mLogger == nullptr)
-        {   
+        {
             // NOLINTBEGIN(misc-include-cleaner)
             auto classId
                 = std::to_string (reinterpret_cast<std::uintptr_t> (this));
-            mLogger = spdlog::stdout_color_mt("ProxyConsole-"
-                                            + classId);
+            mLogger = spdlog::stdout_color_mt("BrokerConsole-" + classId);
             // NOLINTEND(misc-include-cleaner)
         }
         mMaximumInputQueueSize = static_cast<size_t> (mOptions.getQueueCapacity());
 
-        // Create frontend (picks come in)
-        const auto frontendOptions = mOptions.getFrontendOptions();
-        mFrontend 
-            = std::make_unique<Frontend> (frontendOptions,
-                                          mAddPickCallbackFunction, 
-                                          mLogger);
-                  
-        // Create backend (picks go out)
-        const auto backendOptions = mOptions.getBackendOptions();
-        // No point loading more picks than we can buffer on output
-        const auto maxPicksToLoad = backendOptions.getQueueCapacity();
+        // Create publish service (picks come in)
+        const auto publishServiceOptions = mOptions.getPublishServiceOptions();
+        mPublishService
+            = std::make_unique<PublishService> (publishServiceOptions,
+                                                mAddPickCallbackFunction,
+                                                mLogger);
+
+        // Create subscribe service (picks go out)
+        const auto subscribeServiceOptions = mOptions.getSubscribeServiceOptions();
+        const auto maxPicksToLoad = subscribeServiceOptions.getQueueCapacity();
         auto loadedPicks = mDatabase->getMostRecentlySubmittedPicks(maxPicksToLoad);
         /*
-        mBackend 
-            = std::make_unique<Backend> (mOptions.getBackendOptions(),
-                                         loadedPicks,
-                                         mLogger);
+        mSubscribeService
+            = std::make_unique<SubscribeService> (mOptions.getSubscribeServiceOptions(),
+                                                   loadedPicks,
+                                                   mLogger);
         */
     }
 
-    /// Stop the proxy
+    /// Stop the broker
     void stop()
     {
         mKeepRunning.store(false);
         constexpr std::chrono::milliseconds pause{15};
-        // Stop receiving picks first to give subscribers a chance
-        if (mFrontend)
+        if (mPublishService)
         {
-            SPDLOG_LOGGER_DEBUG(mLogger, "Stopping frontend");
-            mFrontend->stop();
+            SPDLOG_LOGGER_DEBUG(mLogger, "Stopping publish service");
+            mPublishService->stop();
             std::this_thread::sleep_for(pause);
         }
-        if (mBackend)
+        if (mSubscribeService)
         {
-            SPDLOG_LOGGER_DEBUG(mLogger, "Stopping backend");
-            mBackend->stop();
+            SPDLOG_LOGGER_DEBUG(mLogger, "Stopping subscribe service");
+            mSubscribeService->stop();
             std::this_thread::sleep_for(pause);
         }
-        // Now shutdown the database
         mDatabase->close();
         mIsRunning.store(false);
     }
@@ -220,32 +218,32 @@ public:
                 {
                     enqueuePick = true;
                 }
-                catch (const UFilterPickerProxy::DuplicatePickException &e)
+                catch (const UFilterPickerPickBroker::DuplicatePickException &e)
                 {
                     SPDLOG_LOGGER_DEBUG(
                         mLogger,
-                        "Detected duplicate pick - will not propagate - details {}", 
+                        "Detected duplicate pick - will not propagate - details {}",
                         std::string {e.what()});
                     mMetrics.incrementDuplicatePicksReceivedCounter();
                     enqueuePick = false;
                 }
                 catch (const std::exception &e)
                 {
-                    SPDLOG_LOGGER_ERROR(mLogger, 
-                                        "Pick to database failed because {}", 
+                    SPDLOG_LOGGER_ERROR(mLogger,
+                                        "Pick to database failed because {}",
                                         std::string {e.what()});
                     enqueuePick = false;
                 }
                 if (enqueuePick)
-                { 
+                {
                     try
                     {
-                        mBackend->enqueue(std::move(pick));
+                        mSubscribeService->enqueue(std::move(pick));
                     }
                     catch (const std::exception &e)
                     {
-                        SPDLOG_LOGGER_ERROR(mLogger, 
-                                            "Failed to enqueue pick because {}", 
+                        SPDLOG_LOGGER_ERROR(mLogger,
+                                            "Failed to enqueue pick because {}",
                                             std::string {e.what()});
                     }
                 }
@@ -263,7 +261,6 @@ public:
         constexpr std::chrono::seconds cleanEvery{60};
         while (mKeepRunning.load(std::memory_order_relaxed))
         {
-            // Set a condition variable
             if (mDatabase->isOpen())
             {
                 //mDatabase->deletePicksBefore();
@@ -280,7 +277,6 @@ public:
     /// @brief Defines the callback for getting/propagating a pick.
     void addPickCallback(UFilterPickerMessageStoreAPI::V1::Pick &&pick)
     {
-        // Check the pick
         if (!pick.has_stream_identifier())
         {
             throw std::invalid_argument("Stream identifier not set");
@@ -293,61 +289,56 @@ public:
         {
             throw std::invalid_argument("Algorithm not set");
         }
-        // Check (and fix capitalization) of our identifier
         auto identifier = pick.stream_identifier();
         auto newIdentifier = ::checkAndFixStreamIdentifier(std::move(identifier));
         *pick.mutable_stream_identifier() = std::move(newIdentifier);
-        // Check (and fix name if not present) of algorithm
         auto algorithm = pick.algorithm();
         auto newAlgorithm = ::checkAndFixAlgorithm(std::move(algorithm));
         *pick.mutable_algorithm() = std::move(newAlgorithm);
-        // Check that the pick time makes some sense
         const auto pickTime
             = google::protobuf::util::TimeUtil::TimestampToNanoseconds(
                  pick.time());
-        const auto now 
+        const auto now
             = std::chrono::duration_cast<std::chrono::microseconds>
               ((std::chrono::high_resolution_clock::now()).time_since_epoch());
         if (pickTime > now.count())
         {
             throw std::invalid_argument("Pick cannot be from future");
         }
-        // Enqueue the pick
         {
         const std::lock_guard lock{mMutex};
         while (mInputQueue.size() >= mMaximumInputQueueSize)
         {
             SPDLOG_LOGGER_WARN(mLogger, "Popping pick from queue");
-            //mMetrics.incrementOverflowPicksCounter();
             mInputQueue.pop();
         }
         mInputQueue.push(std::move(pick));
         }
     }
 
-    /// @result True indicates the proxy is still running
+    /// @result True indicates the broker is still running
     [[nodiscard]] bool isRunning() const noexcept
     {
         return mIsRunning.load();
     }
 private:
 //private:
-    ProxyOptions mOptions;
+    BrokerOptions mOptions;
     std::unique_ptr<Database> mDatabase{nullptr};
     std::shared_ptr<spdlog::logger> mLogger{nullptr};
     std::mutex mMutex;
-    std::function<void(UFilterPickerMessageStoreAPI::V1::Pick &&)> 
+    std::function<void(UFilterPickerMessageStoreAPI::V1::Pick &&)>
         mAddPickCallbackFunction
-    {    
-        std::bind(&ProxyImpl::addPickCallback, this,
-                  std::placeholders::_1)
-    };   
-    UFilterPickerProxy::MetricsSingleton &mMetrics
     {
-        UFilterPickerProxy::MetricsSingleton::getInstance()
+        std::bind(&BrokerImpl::addPickCallback, this,
+                  std::placeholders::_1)
     };
-    std::unique_ptr<Frontend> mFrontend{nullptr};
-    std::unique_ptr<Backend> mBackend{nullptr};
+    UFilterPickerPickBroker::MetricsSingleton &mMetrics
+    {
+        UFilterPickerPickBroker::MetricsSingleton::getInstance()
+    };
+    std::unique_ptr<PublishService> mPublishService{nullptr};
+    std::unique_ptr<SubscribeService> mSubscribeService{nullptr};
     std::queue<UFilterPickerMessageStoreAPI::V1::Pick> mInputQueue;
     size_t mMaximumInputQueueSize{4096};
     std::atomic<bool> mIsRunning{false};
@@ -358,26 +349,26 @@ private:
 };
 
 /// Constructor
-Proxy::Proxy(const ProxyOptions &options,
-             std::unique_ptr<Database> &&database,
-             std::shared_ptr<spdlog::logger> logger) :
-    pImpl(std::make_unique<ProxyImpl> (options, 
-                                       std::move(database), 
-                                       std::move(logger)))
+Broker::Broker(const BrokerOptions &options,
+               std::unique_ptr<Database> &&database,
+               std::shared_ptr<spdlog::logger> logger) :
+    pImpl(std::make_unique<BrokerImpl> (options,
+                                        std::move(database),
+                                        std::move(logger)))
 {
 }
 
 /// Destructor
-Proxy::~Proxy() = default;
+Broker::~Broker() = default;
 
-/// Stop the proxy
-void Proxy::stop()
+/// Stop the broker
+void Broker::stop()
 {
     pImpl->stop();
 }
 
-/// Is the proxy running?
-bool Proxy::isRunning() const noexcept
+/// Is the broker running?
+bool Broker::isRunning() const noexcept
 {
     return pImpl->isRunning();
 }

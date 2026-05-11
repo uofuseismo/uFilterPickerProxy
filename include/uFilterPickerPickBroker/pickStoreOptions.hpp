@@ -1,7 +1,7 @@
-#ifndef UFILTER_PICKER_PROXY_PICK_STORE_OPTIONS_HPP
-#define UFILTER_PICKER_PROXY_PICK_STORE_OPTIONS_HPP
+#ifndef UFILTER_PICKER_PICK_BROKER_PICK_STORE_OPTIONS_HPP
+#define UFILTER_PICKER_PICK_BROKER_PICK_STORE_OPTIONS_HPP
 #include <memory>
-namespace UFilterPickerProxy
+namespace UFilterPickerPickBroker
 {
 /// @class PickStoreOptions pickStoreOptions.hpp
 /// @brief Defines the behavior of the pick store.

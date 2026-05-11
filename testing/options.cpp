@@ -2,33 +2,33 @@
 #include <string>
 #include <optional>
 #include <catch2/catch_test_macros.hpp>
-#include "uFilterPickerMessageStore/grpcServerOptions.hpp"
-#include "uFilterPickerMessageStore/frontendOptions.hpp"
-#include "uFilterPickerMessageStore/backendOptions.hpp"
-#include "uFilterPickerMessageStore/proxyOptions.hpp"
-#include "uFilterPickerMessageStore/pickStoreOptions.hpp"
+#include "uFilterPickerPickBroker/grpcServerOptions.hpp"
+#include "uFilterPickerPickBroker/publishServiceOptions.hpp"
+#include "uFilterPickerPickBroker/subscribeServiceOptions.hpp"
+#include "uFilterPickerPickBroker/brokerOptions.hpp"
+#include "uFilterPickerPickBroker/pickStoreOptions.hpp"
 
-TEST_CASE("UFilterPickerProxy", "[grpcServerOptions]")
+TEST_CASE("UFilterPickerPickBroker", "[grpcServerOptions]")
 {
     SECTION("Defaults")
-    {   
-        const UFilterPickerProxy::GRPCServerOptions options;
+    {
+        const UFilterPickerPickBroker::GRPCServerOptions options;
         REQUIRE(options.getHost() == "localhost");
         REQUIRE(options.getPort() == 50000);
         REQUIRE(options.getAccessToken() == std::nullopt);
         REQUIRE(options.getServerCertificate() == std::nullopt);
         REQUIRE(options.getServerKey() == std::nullopt);
         REQUIRE(options.isReflectionEnabled() == false);
-    } 
+    }
 
     SECTION("Options")
-    {   
+    {
         const std::string host{"some.host.org"};
         const std::string token{"super-secret-token"};
         const std::string serverCertificate{"some-wonky-hash"};
         const std::string serverKey{"some-private-wonky-hash"};
         constexpr uint16_t port{12345};
-        UFilterPickerProxy::GRPCServerOptions options;
+        UFilterPickerPickBroker::GRPCServerOptions options;
 
         options.setHost(host);
         options.setPort(port);
@@ -37,8 +37,8 @@ TEST_CASE("UFilterPickerProxy", "[grpcServerOptions]")
         options.setAccessToken(token);
         options.enableReflection();
 
-        const UFilterPickerProxy::GRPCServerOptions copy{options};
-        
+        const UFilterPickerPickBroker::GRPCServerOptions copy{options};
+
         REQUIRE(copy.getHost() == host);
         REQUIRE(copy.getPort() == port);
         REQUIRE(copy.getServerCertificate() != std::nullopt);
@@ -47,15 +47,15 @@ TEST_CASE("UFilterPickerProxy", "[grpcServerOptions]")
         REQUIRE(*copy.getServerCertificate() == serverCertificate); //NOLINT
         REQUIRE(*copy.getServerKey() == serverKey); //NOLINT
         REQUIRE(*copy.getAccessToken() == token); //NOLINT
-        REQUIRE(copy.isReflectionEnabled() == true); 
-    }   
+        REQUIRE(copy.isReflectionEnabled() == true);
+    }
 }
 
-TEST_CASE("UFilterPickerProxy", "[FrontendOptions]")
+TEST_CASE("UFilterPickerPickBroker", "[PublishServiceOptions]")
 {
     SECTION("Defaults")
     {
-        const UFilterPickerProxy::FrontendOptions options;
+        const UFilterPickerPickBroker::PublishServiceOptions options;
         REQUIRE(options.getMaximumMessageSizeInBytes() == std::nullopt);
         REQUIRE(options.getMaximumNumberOfPublishers() == 2048);
         REQUIRE(options.getMaximumConsecutiveInvalidMessages() == 8);
@@ -69,18 +69,18 @@ TEST_CASE("UFilterPickerProxy", "[FrontendOptions]")
         constexpr int maxPublishers{383};
         constexpr int maxMessageSize{83393};
         constexpr uint32_t maxInvalidMessages{38};
-        UFilterPickerProxy::GRPCServerOptions grpcOptions;
+        UFilterPickerPickBroker::GRPCServerOptions grpcOptions;
 
         grpcOptions.setHost(host);
         grpcOptions.setPort(port);
 
-        UFilterPickerProxy::FrontendOptions options;
+        UFilterPickerPickBroker::PublishServiceOptions options;
         REQUIRE_NOTHROW(options.setGRPCOptions(grpcOptions));
         REQUIRE_NOTHROW(options.setMaximumNumberOfPublishers(maxPublishers));
         REQUIRE_NOTHROW(options.setMaximumMessageSizeInBytes(maxMessageSize));
         options.setMaximumConsecutiveInvalidMessages(maxInvalidMessages);
- 
-        const UFilterPickerProxy::FrontendOptions copy{options};
+
+        const UFilterPickerPickBroker::PublishServiceOptions copy{options};
         REQUIRE(copy.getGRPCOptions().getHost() == host);
         REQUIRE(copy.getGRPCOptions().getPort() == port);
         REQUIRE(copy.getMaximumNumberOfPublishers() == maxPublishers);
@@ -90,11 +90,11 @@ TEST_CASE("UFilterPickerProxy", "[FrontendOptions]")
     }
 }
 
-TEST_CASE("UFilterPickerProxy", "[BackendOptions]")
+TEST_CASE("UFilterPickerPickBroker", "[SubscribeServiceOptions]")
 {
     SECTION("Defaults")
     {
-        const UFilterPickerProxy::BackendOptions options;
+        const UFilterPickerPickBroker::SubscribeServiceOptions options;
         REQUIRE(options.getMaximumNumberOfSubscribers() == 64);
         REQUIRE(options.getQueueCapacity() == 8192);
         REQUIRE(options.hasGRPCOptions() == false);
@@ -106,17 +106,17 @@ TEST_CASE("UFilterPickerProxy", "[BackendOptions]")
         constexpr uint16_t port{6432};
         constexpr int maxSubscribers{3833};
         constexpr int queueCapacity{910};
-        UFilterPickerProxy::GRPCServerOptions grpcOptions;
+        UFilterPickerPickBroker::GRPCServerOptions grpcOptions;
 
         grpcOptions.setHost(host);
         grpcOptions.setPort(port);
 
-        UFilterPickerProxy::BackendOptions options;
+        UFilterPickerPickBroker::SubscribeServiceOptions options;
         REQUIRE_NOTHROW(options.setGRPCOptions(grpcOptions));
         REQUIRE_NOTHROW(options.setMaximumNumberOfSubscribers(maxSubscribers));
         REQUIRE_NOTHROW(options.setQueueCapacity(queueCapacity));
 
-        const UFilterPickerProxy::BackendOptions copy{options};
+        const UFilterPickerPickBroker::SubscribeServiceOptions copy{options};
         REQUIRE(copy.getGRPCOptions().getHost() == host);
         REQUIRE(copy.getGRPCOptions().getPort() == port);
         REQUIRE(copy.getMaximumNumberOfSubscribers() == maxSubscribers);
@@ -124,63 +124,62 @@ TEST_CASE("UFilterPickerProxy", "[BackendOptions]")
     }
 }
 
-TEST_CASE("UFilterPickerProxy", "[ProxyOptions]")
+TEST_CASE("UFilterPickerPickBroker", "[BrokerOptions]")
 {
     SECTION("Defaults")
     {
-        const UFilterPickerProxy::ProxyOptions options;
-        REQUIRE(options.hasFrontendOptions() == false);
-        REQUIRE(options.hasBackendOptions() == false);
+        const UFilterPickerPickBroker::BrokerOptions options;
+        REQUIRE(options.hasPublishServiceOptions() == false);
+        REQUIRE(options.hasSubscribeServiceOptions() == false);
         REQUIRE(options.getQueueCapacity() == 8192);
     }
 
     SECTION("Options")
     {
         const std::string host{"this.host.org"};
-        constexpr uint16_t fePort{6432};
-        constexpr uint16_t bePort{6433};
+        constexpr uint16_t publishPort{6432};
+        constexpr uint16_t subscribePort{6433};
         constexpr int queueCapacity{832};
-        UFilterPickerProxy::GRPCServerOptions grpcFEOptions;  
-        grpcFEOptions.setHost(host);
-        grpcFEOptions.setPort(fePort);
+        UFilterPickerPickBroker::GRPCServerOptions grpcPublishOptions;
+        grpcPublishOptions.setHost(host);
+        grpcPublishOptions.setPort(publishPort);
 
-        UFilterPickerProxy::GRPCServerOptions grpcBEOptions;  
-        grpcBEOptions.setHost(host);
-        grpcBEOptions.setPort(bePort);
+        UFilterPickerPickBroker::GRPCServerOptions grpcSubscribeOptions;
+        grpcSubscribeOptions.setHost(host);
+        grpcSubscribeOptions.setPort(subscribePort);
 
-        UFilterPickerProxy::FrontendOptions feOptions;
-        feOptions.setGRPCOptions(grpcFEOptions);
+        UFilterPickerPickBroker::PublishServiceOptions publishOptions;
+        publishOptions.setGRPCOptions(grpcPublishOptions);
 
-        UFilterPickerProxy::BackendOptions beOptions;
-        beOptions.setGRPCOptions(grpcBEOptions);
+        UFilterPickerPickBroker::SubscribeServiceOptions subscribeOptions;
+        subscribeOptions.setGRPCOptions(grpcSubscribeOptions);
 
-        UFilterPickerProxy::ProxyOptions options;
-        REQUIRE_NOTHROW(options.setFrontendOptions(feOptions));
-        REQUIRE_NOTHROW(options.setBackendOptions(beOptions));
+        UFilterPickerPickBroker::BrokerOptions options;
+        REQUIRE_NOTHROW(options.setPublishServiceOptions(publishOptions));
+        REQUIRE_NOTHROW(options.setSubscribeServiceOptions(subscribeOptions));
         REQUIRE_NOTHROW(options.setQueueCapacity(queueCapacity));
 
-        REQUIRE(options.getFrontendOptions().getGRPCOptions().getPort() == fePort);
-        REQUIRE(options.getBackendOptions().getGRPCOptions().getPort() == bePort);
+        REQUIRE(options.getPublishServiceOptions().getGRPCOptions().getPort() == publishPort);
+        REQUIRE(options.getSubscribeServiceOptions().getGRPCOptions().getPort() == subscribePort);
         REQUIRE(options.getQueueCapacity() == queueCapacity);
-
     }
 }
 
-TEST_CASE("UFilterPickerProxy", "[PickStoreOptions]")
+TEST_CASE("UFilterPickerPickBroker", "[PickStoreOptions]")
 {
     SECTION("Defaults")
     {
-        const UFilterPickerProxy::PickStoreOptions options;
+        const UFilterPickerPickBroker::PickStoreOptions options;
         REQUIRE(options.getMaximumQueueSize() == 2048);
     }
     SECTION("Options")
     {
         constexpr int maxQueueSize{732};
-        UFilterPickerProxy::PickStoreOptions options;
+        UFilterPickerPickBroker::PickStoreOptions options;
         REQUIRE_THROWS(options.setMaximumQueueSize(0));
         REQUIRE_NOTHROW(options.setMaximumQueueSize(maxQueueSize));
 
-        const UFilterPickerProxy::PickStoreOptions copy{options};
+        const UFilterPickerPickBroker::PickStoreOptions copy{options};
         REQUIRE(options.getMaximumQueueSize() == maxQueueSize);
     }
 }

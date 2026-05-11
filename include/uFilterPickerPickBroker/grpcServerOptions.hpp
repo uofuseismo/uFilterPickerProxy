@@ -1,12 +1,12 @@
-#ifndef UFILTER_PICKER_PROXY_GRPC_SERVER_OPTIONS_HPP
-#define UFILTER_PICKER_PROXY_GRPC_SERVER_OPTIONS_HPP
+#ifndef UFILTER_PICKER_PICK_BROKER_GRPC_SERVER_OPTIONS_HPP
+#define UFILTER_PICKER_PICK_BROKER_GRPC_SERVER_OPTIONS_HPP
 #include <cstdint>
 #include <string>
 #include <optional>
 #include <memory>
-namespace UFilterPickerProxy
+namespace UFilterPickerPickBroker
 {
-/// @class GrpcServerOptions grpcServerOptions.hpp
+/// @class GRPCServerOptions grpcServerOptions.hpp
 /// @brief This class is used to configure the gRPC server options.
 /// @copyright Ben Baker (University of Utah) distributed under the
 ///             MIT NO AI license.
@@ -64,9 +64,9 @@ public:
     /// @brief Disables reflection.
     void disableReflection() noexcept;
     /// @brief Gets whether reflection is enabled.
-    /// @return True if reflection is enabled, false otherwise.  By default this is false
+    /// @return True if reflection is enabled, false otherwise.  By default this is false.
     [[nodiscard]] bool isReflectionEnabled() const noexcept;
-    
+
     /// @brief Destructor.
     ~GRPCServerOptions();
     /// @brief Copy assignment operator.

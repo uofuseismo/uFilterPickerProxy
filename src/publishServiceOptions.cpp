@@ -3,12 +3,12 @@
 #include <stdexcept>
 #include <cstdint>
 #include <optional>
-#include "uFilterPickerMessageStore/frontendOptions.hpp"
-#include "uFilterPickerMessageStore/grpcServerOptions.hpp"
+#include "uFilterPickerPickBroker/publishServiceOptions.hpp"
+#include "uFilterPickerPickBroker/grpcServerOptions.hpp"
 
-using namespace UFilterPickerProxy;
+using namespace UFilterPickerPickBroker;
 
-class FrontendOptions::FrontendOptionsImpl
+class PublishServiceOptions::PublishServiceOptionsImpl
 {
 public:
     GRPCServerOptions mGRPCOptions;
@@ -19,33 +19,33 @@ public:
 };
 
 /// Constructor
-FrontendOptions::FrontendOptions() :
-    pImpl(std::make_unique<FrontendOptionsImpl> ())
+PublishServiceOptions::PublishServiceOptions() :
+    pImpl(std::make_unique<PublishServiceOptionsImpl> ())
 {
 }
 
 /// Copy constructor
-FrontendOptions::FrontendOptions(const FrontendOptions &options)
+PublishServiceOptions::PublishServiceOptions(const PublishServiceOptions &options)
 {
     *this = options;
 }
 
 /// Move constructor
-FrontendOptions::FrontendOptions(FrontendOptions &&options) noexcept
+PublishServiceOptions::PublishServiceOptions(PublishServiceOptions &&options) noexcept
 {
     *this = std::move(options);
 }
 
 /// Copy assignment
-FrontendOptions &FrontendOptions::operator=(const FrontendOptions &options)
+PublishServiceOptions &PublishServiceOptions::operator=(const PublishServiceOptions &options)
 {
     if (&options == this){return *this;}
-    pImpl = std::make_unique<FrontendOptionsImpl> (*options.pImpl);
+    pImpl = std::make_unique<PublishServiceOptionsImpl> (*options.pImpl);
     return *this;
 }
 
 /// Move assignment
-FrontendOptions &FrontendOptions::operator=(FrontendOptions &&options) noexcept
+PublishServiceOptions &PublishServiceOptions::operator=(PublishServiceOptions &&options) noexcept
 {
     if (&options == this){return *this;}
     pImpl = std::move(options.pImpl);
@@ -53,28 +53,28 @@ FrontendOptions &FrontendOptions::operator=(FrontendOptions &&options) noexcept
 }
 
 /// Destructor
-FrontendOptions::~FrontendOptions() = default;
+PublishServiceOptions::~PublishServiceOptions() = default;
 
 /// GRPC options
-void FrontendOptions::setGRPCOptions(const GRPCServerOptions &options)
+void PublishServiceOptions::setGRPCOptions(const GRPCServerOptions &options)
 {
     pImpl->mGRPCOptions = options;
     pImpl->mHasGRPCOptions = true;
 }
 
-GRPCServerOptions FrontendOptions::getGRPCOptions() const
+GRPCServerOptions PublishServiceOptions::getGRPCOptions() const
 {
     if (!hasGRPCOptions()){throw std::runtime_error("gRPC options not set");}
     return pImpl->mGRPCOptions;
 }
 
-bool FrontendOptions::hasGRPCOptions() const noexcept
+bool PublishServiceOptions::hasGRPCOptions() const noexcept
 {
     return pImpl->mHasGRPCOptions;
 }
 
 /// The maximum number of publishers
-void FrontendOptions::setMaximumNumberOfPublishers(
+void PublishServiceOptions::setMaximumNumberOfPublishers(
     const int maxPublishers)
 {
     if (maxPublishers < 1)
@@ -85,13 +85,13 @@ void FrontendOptions::setMaximumNumberOfPublishers(
     pImpl->mMaximumPublishers = maxPublishers;
 }
 
-int FrontendOptions::getMaximumNumberOfPublishers() const noexcept
+int PublishServiceOptions::getMaximumNumberOfPublishers() const noexcept
 {
     return pImpl->mMaximumPublishers;
 }
 
 /// Max message size
-void FrontendOptions::setMaximumMessageSizeInBytes(
+void PublishServiceOptions::setMaximumMessageSizeInBytes(
     const int maxMessageSize)
 {
     if (maxMessageSize < 1)
@@ -102,20 +102,20 @@ void FrontendOptions::setMaximumMessageSizeInBytes(
     pImpl->mMaximumMessageSizeInBytes = std::optional<int> (maxMessageSize);
 }
 
-std::optional<int> 
-    FrontendOptions::getMaximumMessageSizeInBytes() const noexcept
+std::optional<int>
+    PublishServiceOptions::getMaximumMessageSizeInBytes() const noexcept
 {
     return pImpl->mMaximumMessageSizeInBytes;
 }
 
 /// Consecutive invalid messages
-void FrontendOptions::setMaximumConsecutiveInvalidMessages(
+void PublishServiceOptions::setMaximumConsecutiveInvalidMessages(
     const uint32_t maxInvalidMessages) noexcept
 {
     pImpl->mMaximumConsecutiveInvalidMessages = maxInvalidMessages;
 }
 
-uint32_t FrontendOptions::getMaximumConsecutiveInvalidMessages() const noexcept
+uint32_t PublishServiceOptions::getMaximumConsecutiveInvalidMessages() const noexcept
 {
     return pImpl->mMaximumConsecutiveInvalidMessages;
 }

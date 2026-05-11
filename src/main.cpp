@@ -10,9 +10,9 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/logger.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
-#include "uFilterPickerMessageStore/proxy.hpp"
-#include "uFilterPickerMessageStore/proxyOptions.hpp"
-#include "uFilterPickerMessageStore/metricsSingleton.hpp"
+#include "uFilterPickerPickBroker/broker.hpp"
+#include "uFilterPickerPickBroker/brokerOptions.hpp"
+#include "uFilterPickerPickBroker/metricsSingleton.hpp"
 
 namespace
 {
@@ -27,7 +27,7 @@ class Process
 {
 public:
     Process(std::shared_ptr<spdlog::logger> &&logger) :
-        mLogger(std::move(logger))        
+        mLogger(std::move(logger))
     {
         if (mLogger == nullptr)
         {
@@ -39,7 +39,6 @@ public:
         }
     }
 
-    /// Start the process.
     void start()
     {
         if (mIsRunning)
@@ -49,28 +48,24 @@ public:
         }
     }
 
-    /// Stops the process.
     void stop()
     {
         if (mIsRunning)
         {
             mIsRunning = false;
         }
-        if (mProxy){mProxy->stop();}
+        if (mBroker){mBroker->stop();}
     }
 
-    /// Main thread can print a summary of processing to logs.
     void printSummary()
     {
     }
 
-    /// @result True indicates that all futures are okay; false if any future threw an exception.
     [[nodiscard]] bool checkFuturesOkay(const std::chrono::milliseconds &waitForFuture)
     {
         return true;
     }
 
-    /// Keep the main process busy.
     void handleMainThread()
     {
         while (!mStopRequested)
@@ -84,7 +79,7 @@ public:
             }
             constexpr std::chrono::milliseconds waitForFuture {5};
             if (!checkFuturesOkay(waitForFuture))
-                {
+            {
                 SPDLOG_LOGGER_CRITICAL(mLogger,
                    "Futures exception caught; terminating app");
                 mStopRequested = true;
@@ -101,7 +96,6 @@ public:
         }
     }
 
-    /// Set up signal handlers for SIGINT and SIGTERM.
     void stdCatchSignals()
     {
         std::signal(SIGINT,  Process::stdSignalHandler);
@@ -113,24 +107,23 @@ public:
         mSignalStatus = signal;
         mInterrupted = true;
     }
-    
-    /// Destructor.
+
     ~Process()
     {
         stop();
     }
 //private:
     std::shared_ptr<spdlog::logger> mLogger{nullptr};
-    std::unique_ptr<UFilterPickerProxy::Proxy> mProxy{nullptr};
+    std::unique_ptr<UFilterPickerPickBroker::Broker> mBroker{nullptr};
     mutable std::mutex mStopMutex;
     std::condition_variable mStopCondition;
     bool mStopRequested{false};
-    bool mIsRunning{false};    
+    bool mIsRunning{false};
 };
 
 int main(int argc, char *argv[])
 {
-    UFilterPickerProxy::initializeMetricsSingleton();
+    UFilterPickerPickBroker::initializeMetricsSingleton();
 
     return EXIT_SUCCESS;
 }

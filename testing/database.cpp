@@ -15,8 +15,8 @@
 #include <spdlog/logger.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <google/protobuf/util/time_util.h>
-#include "uFilterPickerMessageStore/database.hpp"
-#include "uFilterPickerMessageStore/exception.hpp"
+#include "uFilterPickerPickBroker/database.hpp"
+#include "uFilterPickerPickBroker/exception.hpp"
 #include <uFilterPickerMessageStoreAPI/v1/pick.pb.h>
 #include <uFilterPickerMessageStoreAPI/v1/phase_hint.pb.h>
 #include <uFilterPickerMessageStoreAPI/v1/stream_identifier.pb.h>
@@ -37,14 +37,14 @@ bool comparePicks(const auto &lhs, const auto &rhs)
         rhs.stream_identifier().network()){return false;}
     if (lhs.stream_identifier().station() !=
         rhs.stream_identifier().station()){return false;}
-    if (lhs.stream_identifier().channel() != 
+    if (lhs.stream_identifier().channel() !=
         rhs.stream_identifier().channel()){return false;}
     if (lhs.stream_identifier().location_code() !=
         rhs.stream_identifier().location_code())
     {
         return false;
     }
-    if (google::protobuf::util::TimeUtil::TimestampToNanoseconds(lhs.time()) != 
+    if (google::protobuf::util::TimeUtil::TimestampToNanoseconds(lhs.time()) !=
         google::protobuf::util::TimeUtil::TimestampToNanoseconds(rhs.time()))
     {
         return false;
@@ -59,16 +59,16 @@ bool comparePicks(const auto &lhs, const auto &rhs)
 }
 }
 
-TEST_CASE("UFilterPickerProxy", "[Database]")
+TEST_CASE("UFilterPickerPickBroker", "[Database]")
 {
-    namespace UFP = UFilterPickerProxy;
+    namespace UFP = UFilterPickerPickBroker;
     SECTION("Create")
     {
         auto logger = spdlog::stdout_color_mt("create-db-logger"); // NOLINT
         const std::filesystem::path sqliteFile{"testFile.sqlite3"};
         if (std::filesystem::exists(sqliteFile)){std::filesystem::remove(sqliteFile);}
         UFP::Database db{logger, sqliteFile, UFP::Database::Mode::Create};
-        REQUIRE(db.isOpen()); 
+        REQUIRE(db.isOpen());
         REQUIRE(!db.isReadOnly());
 
         const std::string network{"UU"};
@@ -98,13 +98,13 @@ TEST_CASE("UFilterPickerProxy", "[Database]")
         pick.set_phase_hint(phaseHint);
 
         REQUIRE_NOTHROW(db.add(pick));
-        REQUIRE_THROWS_AS(db.add(pick), UFilterPickerProxy::DuplicatePickException);
-         
+        REQUIRE_THROWS_AS(db.add(pick), UFilterPickerPickBroker::DuplicatePickException);
+
         auto allPicks = db.getAllPicks();
         REQUIRE(allPicks.size() == 1);
         REQUIRE(::comparePicks(allPicks.at(0), pick) == true);
         REQUIRE(db.deletePicksBefore(pickTime + std::chrono::seconds {0}) == 0);
         REQUIRE(db.deletePicksBefore(pickTime + std::chrono::seconds {1}) == 1);
     }
-    
+
 }

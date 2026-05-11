@@ -4,9 +4,9 @@
 #include <string>
 #include <stdexcept>
 #include <memory>
-#include "uFilterPickerMessageStore/grpcServerOptions.hpp"
+#include "uFilterPickerPickBroker/grpcServerOptions.hpp"
 
-using namespace UFilterPickerProxy;
+using namespace UFilterPickerPickBroker;
 
 class GRPCServerOptions::GRPCServerOptionsImpl
 {
@@ -45,7 +45,7 @@ GRPCServerOptions& GRPCServerOptions::operator=(const GRPCServerOptions &options
     return *this;
 }
 
-/// Move constructor
+/// Move assignment
 GRPCServerOptions& GRPCServerOptions::operator=(GRPCServerOptions &&options) noexcept
 {
     if (this == &options){return *this;}
@@ -53,46 +53,39 @@ GRPCServerOptions& GRPCServerOptions::operator=(GRPCServerOptions &&options) noe
     return *this;
 }
 
-/// Sets the host.
 void GRPCServerOptions::setHost(const std::string &host)
 {
     if (host.empty()){throw std::invalid_argument("Host cannot be empty.");}
     pImpl->mHost = host;
 }
 
-/// Gets the host.
 std::string GRPCServerOptions::getHost() const noexcept
 {
-    return pImpl->mHost;   
+    return pImpl->mHost;
 }
 
-/// Sets the port.
 void GRPCServerOptions::setPort(uint16_t port)
 {
     if (port == 0){throw std::invalid_argument("Port cannot be 0.");}
     pImpl->mPort = port;
 }
 
-/// Gets the port.
 uint16_t GRPCServerOptions::getPort() const noexcept
 {
     return pImpl->mPort;
 }
 
-/// Sets the access token.
 void GRPCServerOptions::setAccessToken(const std::string &accessToken)
 {
     if (accessToken.empty()){throw std::invalid_argument("Access token cannot be empty.");}
     pImpl->mAccessToken = std::optional<std::string> (accessToken);
 }
 
-/// Gets the access token.
 std::optional<std::string> GRPCServerOptions::getAccessToken() const noexcept
 {
     return pImpl->mAccessToken;
 }
 
-/// Sets the server certificate.
 void GRPCServerOptions::setServerCertificate(const std::string &serverCertificate)
 {
     if (serverCertificate.empty())
@@ -102,13 +95,11 @@ void GRPCServerOptions::setServerCertificate(const std::string &serverCertificat
     pImpl->mServerCertificate = std::optional<std::string> (serverCertificate);
 }
 
-/// Gets the server certificate.
 std::optional<std::string> GRPCServerOptions::getServerCertificate() const noexcept
 {
     return pImpl->mServerCertificate;
 }
 
-/// Sets the server's private key.
 void GRPCServerOptions::setServerKey(const std::string &serverKey)
 {
     if (serverKey.empty())
@@ -118,29 +109,24 @@ void GRPCServerOptions::setServerKey(const std::string &serverKey)
     pImpl->mServerKey = std::optional<std::string> (serverKey);
 }
 
-/// Gets the server's private key.
 std::optional<std::string> GRPCServerOptions::getServerKey() const noexcept
 {
     return pImpl->mServerKey;
 }
 
-/// Enables reflection.
 void GRPCServerOptions::enableReflection() noexcept
 {
     pImpl->mReflectionEnabled = true;
-}   
+}
 
-/// Disables reflection.
 void GRPCServerOptions::disableReflection() noexcept
 {
     pImpl->mReflectionEnabled = false;
-}   
+}
 
-/// Gets whether reflection is enabled.
 bool GRPCServerOptions::isReflectionEnabled() const noexcept
 {
     return pImpl->mReflectionEnabled;
 }
 
-/// Destructor
 GRPCServerOptions::~GRPCServerOptions() = default;

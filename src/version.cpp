@@ -1,21 +1,21 @@
 #include <string>
-#include "uFilterPickerMessageStore/version.hpp"
+#include "uFilterPickerPickBroker/version.hpp"
 
-using namespace UFilterPickerMessageStore;
+using namespace UFilterPickerPickBroker;
 
 int Version::getMajor() noexcept
 {
-    return uFilterPickerMessageStore_MAJOR;
+    return uFilterPickerPickBroker_MAJOR;
 }
 
 int Version::getMinor() noexcept
 {
-    return uFilterPickerMessageStore_MINOR;
+    return uFilterPickerPickBroker_MINOR;
 }
 
 int Version::getPatch() noexcept
 {
-    return uFilterPickerMessageStore_PATCH;
+    return uFilterPickerPickBroker_PATCH;
 }
 
 //NOLINTBEGIN(bugprone-easily-swappable-parameters)
@@ -23,23 +23,23 @@ bool Version::isAtLeast(const int major, const int minor,
                         const int patch) noexcept
 //NOLINTEND(bugprone-easily-swappable-parameters)
 {
-    if (uFilterPickerMessageStore_MAJOR < major){return false;}
-    if (uFilterPickerMessageStore_MAJOR > major){return true;}
-    if (uFilterPickerMessageStore_MINOR < minor){return false;}
-    if (uFilterPickerMessageStore_MINOR > minor){return true;}
-    if (uFilterPickerMessageStore_PATCH < patch){return false;}
+    if (uFilterPickerPickBroker_MAJOR < major){return false;}
+    if (uFilterPickerPickBroker_MAJOR > major){return true;}
+    if (uFilterPickerPickBroker_MINOR < minor){return false;}
+    if (uFilterPickerPickBroker_MINOR > minor){return true;}
+    if (uFilterPickerPickBroker_PATCH < patch){return false;}
     return true;
 }
 
 std::string Version::getVersion() noexcept
 {
-    std::string version{uFilterPickerMessageStore_VERSION};
+    std::string version{uFilterPickerPickBroker_VERSION};
     return version;
 }
 
 std::string Version::getTag() noexcept
 {
-    std::string tag{uFilterPickerMessageStore_GITTAG};
+    std::string tag{uFilterPickerPickBroker_GITTAG};
     return tag;
 }
 

@@ -1,11 +1,11 @@
-#ifndef UFILTER_PICKER_PROXY_PICK_STORE_HPP
-#define UFILTER_PICKER_PROXY_PICK_STORE_HPP
+#ifndef UFILTER_PICKER_PICK_BROKER_PICK_STORE_HPP
+#define UFILTER_PICKER_PICK_BROKER_PICK_STORE_HPP
 #include <memory>
 #include <vector>
 #include <optional>
 #include <chrono>
 #include <spdlog/logger.h>
-namespace UFilterPickerProxy
+namespace UFilterPickerPickBroker
 {
  class PickStoreOptions;
 }
@@ -13,7 +13,7 @@ namespace UFilterPickerMessageStoreAPI::V1
 {
  class Pick;
 }
-namespace UFilterPickerProxy
+namespace UFilterPickerPickBroker
 {
 /// @class PickStore pickStore.hpp
 /// @brief Manages and publishes picks to real-time pick subscribers.

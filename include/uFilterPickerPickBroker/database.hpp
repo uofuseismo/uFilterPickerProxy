@@ -1,5 +1,5 @@
-#ifndef UFILTER_PICKER_PROXY_DATABASE_HPP
-#define UFILTER_PICKER_PROXY_DATABASE_HPP
+#ifndef UFILTER_PICKER_PICK_BROKER_DATABASE_HPP
+#define UFILTER_PICKER_PICK_BROKER_DATABASE_HPP
 #include <memory>
 #include <filesystem>
 #include <chrono>
@@ -9,10 +9,10 @@ namespace UFilterPickerMessageStoreAPI::V1
 {
  class Pick;
 }
-namespace UFilterPickerProxy
+namespace UFilterPickerPickBroker
 {
 /// @name Database database.hpp
-/// @brief A simple SQlite3 database for managing submitted picks.
+/// @brief A simple SQLite3 database for managing submitted picks.
 /// @copyright Ben Baker (University of Utah) distributed under the
 ///            MIT NO AI license.
 class Database
@@ -23,7 +23,7 @@ public:
         Create,
         ReadWrite,
         ReadOnly
-    }; 
+    };
 public:
     /// @brief Opens/creates the database.
     Database(std::shared_ptr<spdlog::logger> logger,

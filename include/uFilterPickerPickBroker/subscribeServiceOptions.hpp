@@ -1,21 +1,21 @@
-#ifndef UFILTER_PICKER_PROXY_BACKEND_OPTIONS_HPP
-#define UFILTER_PICKER_PROXY_BACKEND_OPTIONS_HPP
+#ifndef UFILTER_PICKER_PICK_BROKER_SUBSCRIBE_SERVICE_OPTIONS_HPP
+#define UFILTER_PICKER_PICK_BROKER_SUBSCRIBE_SERVICE_OPTIONS_HPP
 #include <memory>
-namespace UFilterPickerProxy
+namespace UFilterPickerPickBroker
 {
  class GRPCServerOptions;
 }
-namespace UFilterPickerProxy
+namespace UFilterPickerPickBroker
 {
-class BackendOptions
+class SubscribeServiceOptions
 {
 public:
     /// @brief Move constructor.
-    BackendOptions();
+    SubscribeServiceOptions();
     /// @brief Copy constructor.
-    BackendOptions(const BackendOptions &options);
+    SubscribeServiceOptions(const SubscribeServiceOptions &options);
     /// @brief Move constructor.
-    BackendOptions(BackendOptions &&options) noexcept;
+    SubscribeServiceOptions(SubscribeServiceOptions &&options) noexcept;
 
     /// @brief Sets the gRPC server options.
     /// @param[in] options  The gRPC server options.
@@ -38,14 +38,14 @@ public:
     [[nodiscard]] int getQueueCapacity() const noexcept;
 
     /// @brief Destructor.
-    ~BackendOptions();
+    ~SubscribeServiceOptions();
     /// @brief Copy assignment.
-    BackendOptions& operator=(const BackendOptions &options);
+    SubscribeServiceOptions& operator=(const SubscribeServiceOptions &options);
     /// @brief Move assignment.
-    BackendOptions& operator=(BackendOptions &&options) noexcept;
+    SubscribeServiceOptions& operator=(SubscribeServiceOptions &&options) noexcept;
 private:
-    class BackendOptionsImpl;
-    std::unique_ptr<BackendOptionsImpl> pImpl;
+    class SubscribeServiceOptionsImpl;
+    std::unique_ptr<SubscribeServiceOptionsImpl> pImpl;
 };
 }
 #endif

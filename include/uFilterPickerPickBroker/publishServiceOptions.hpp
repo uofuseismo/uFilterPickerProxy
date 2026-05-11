@@ -1,26 +1,26 @@
-#ifndef UFILTER_PICKER_PROXY_FRONTEND_OPTIONS_HPP
-#define UFILTER_PICKER_PROXY_FRONTEND_OPTIONS_HPP
+#ifndef UFILTER_PICKER_PICK_BROKER_PUBLISH_SERVICE_OPTIONS_HPP
+#define UFILTER_PICKER_PICK_BROKER_PUBLISH_SERVICE_OPTIONS_HPP
 #include <memory>
 #include <optional>
-namespace UFilterPickerProxy
+namespace UFilterPickerPickBroker
 {
  class GRPCServerOptions;
 }
-namespace UFilterPickerProxy
+namespace UFilterPickerPickBroker
 {
-/// @class FrontendOptions frontendOptions.hpp
-/// @brief Defines the frontend's options.
+/// @class PublishServiceOptions publishServiceOptions.hpp
+/// @brief Defines the publish service's options.
 /// @copyright Ben Baker (University of Utah) distributed under the
 ///            MIT NO AI license.
-class FrontendOptions
+class PublishServiceOptions
 {
 public:
     /// @brief Constructor.
-    FrontendOptions();
+    PublishServiceOptions();
     /// @brief Copy constructor.
-    FrontendOptions(const FrontendOptions &options);
+    PublishServiceOptions(const PublishServiceOptions &options);
     /// @brief Move constructor.
-    FrontendOptions(FrontendOptions &&options) noexcept;
+    PublishServiceOptions(PublishServiceOptions &&options) noexcept;
 
     /// @brief Sets the gRPC server options.
     /// @param[in] options  The gRPC server options.
@@ -33,16 +33,16 @@ public:
 
     /// @brief Sets the maximum number of publishers.
     /// @param[in] maxPublishers  The maximum number of publishers.
-    /// @throws std::invalid_argument if this is not positive. 
+    /// @throws std::invalid_argument if this is not positive.
     void setMaximumNumberOfPublishers(int maxPublishers);
     /// @result The maximum number of publishers.
     [[nodiscard]] int getMaximumNumberOfPublishers() const noexcept;
 
     /// @brief Sets the maximum message size in bytes.
     /// @param[in] maxMessageSize  The maximum message size.
-    /// @throws std::invalid_argument if this is not positive. 
+    /// @throws std::invalid_argument if this is not positive.
     void setMaximumMessageSizeInBytes(int maxMessageSize);
-    /// @result The maximum number of publishers.
+    /// @result The maximum message size in bytes.
     [[nodiscard]] std::optional<int> getMaximumMessageSizeInBytes() const noexcept;
 
     /// @brief Sets the maximum number of consecutive invalid messages before
@@ -54,14 +54,14 @@ public:
     [[nodiscard]] uint32_t getMaximumConsecutiveInvalidMessages() const noexcept;
 
     /// @brief Destructor.
-    ~FrontendOptions();
+    ~PublishServiceOptions();
     /// @brief Copy assignment.
-    FrontendOptions& operator=(const FrontendOptions &options);
+    PublishServiceOptions& operator=(const PublishServiceOptions &options);
     /// @brief Move assignment.
-    FrontendOptions& operator=(FrontendOptions &&options) noexcept;
+    PublishServiceOptions& operator=(PublishServiceOptions &&options) noexcept;
 private:
-    class FrontendOptionsImpl;
-    std::unique_ptr<FrontendOptionsImpl> pImpl;
+    class PublishServiceOptionsImpl;
+    std::unique_ptr<PublishServiceOptionsImpl> pImpl;
 };
 }
 #endif

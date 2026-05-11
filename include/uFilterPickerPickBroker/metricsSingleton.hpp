@@ -1,7 +1,7 @@
-#ifndef UFILTER_PICKER_PROXY_METRICS_SINGLETON_HPP
-#define UFILTER_PICKER_PROXY_METRICS_SINGLETON_HPP
+#ifndef UFILTER_PICKER_PICK_BROKER_METRICS_SINGLETON_HPP
+#define UFILTER_PICKER_PICK_BROKER_METRICS_SINGLETON_HPP
 #include <memory>
-namespace UFilterPickerProxy
+namespace UFilterPickerPickBroker
 {
 /// @class MetricsSingleton metricsSingleton.hpp
 /// @brief This class allows metrics to be sent to the OTel collector.
@@ -14,7 +14,7 @@ public:
     [[maybe_unused]] static MetricsSingleton &getInstance();
 
     /// @brief Increments overflow input pick counter.  This indicates the
-    ///        proxy middleware is getting bogged down and picks are not
+    ///        broker middleware is getting bogged down and picks are not
     ///        being propagated.
     void incrementOverflowInputPicksCounter();
     /// @result The overflow input picks count.
@@ -35,17 +35,17 @@ public:
     /// @result The number of duplicate picks received.
     [[nodiscard]] int64_t getDupcliatePicksReceivedCount() const noexcept;
 
-    /// @brief Updates the frontend utilization.
+    /// @brief Updates the publish service utilization.
     /// @param[in] utilization  This utilization in the range of [0, 1].
-    void updateFrontendUtilization(double utilization);
-    /// @result The frontend utilization.  To convert this to a percent multiply by 100.
-    [[nodiscard]] double getFrontendUtilization() const noexcept;
+    void updatePublishServiceUtilization(double utilization);
+    /// @result The publish service utilization.  To convert to percent multiply by 100.
+    [[nodiscard]] double getPublishServiceUtilization() const noexcept;
 
-    /// @brief Updates the backend utilization.
+    /// @brief Updates the subscribe service utilization.
     /// @param[in] utilization  This utilization in the range of [0, 1].
-    void updateBackendUtilization(double utilization);
-    /// @result The frontend utilization.  To convert this to a percent multiply by 100.
-    [[nodiscard]] double getBackendUtilization() const noexcept;
+    void updateSubscribeServiceUtilization(double utilization);
+    /// @result The subscribe service utilization.  To convert to percent multiply by 100.
+    [[nodiscard]] double getSubscribeServiceUtilization() const noexcept;
 
     /// @brief Resets the counters and clears maps.  This is useful for unit tests.
     void resetCounters();
@@ -56,8 +56,8 @@ private:
     std::atomic<int64_t> mPicksReceivedCounter{0};
     std::atomic<int64_t> mInvalidPicksReceivedCounter{0};
     std::atomic<int64_t> mDuplicatePicksCounter{0};
-    std::atomic<double> mFrontendUtilization{0};
-    std::atomic<double> mBackendUtilization{0};
+    std::atomic<double> mPublishServiceUtilization{0};
+    std::atomic<double> mSubscribeServiceUtilization{0};
 };
 
 /// @brief Convenience function to instantiate the metrics singleton once at the

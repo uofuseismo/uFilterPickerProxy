@@ -25,12 +25,12 @@
 #include <uFilterPickerMessageStoreAPI/v1/stream_identifier.pb.h>
 #include <uFilterPickerMessageStoreAPI/v1/phase_hint.pb.h>
 #include <uFilterPickerMessageStoreAPI/v1/algorithm.pb.h>
-#include "uFilterPickerMessageStore/database.hpp"
-#include "uFilterPickerMessageStore/exception.hpp"
+#include "uFilterPickerPickBroker/database.hpp"
+#include "uFilterPickerPickBroker/exception.hpp"
 
 #define N_PHASE_HINTS 3
 
-using namespace UFilterPickerProxy;
+using namespace UFilterPickerPickBroker;
 
 namespace
 {
@@ -41,7 +41,7 @@ struct PickExistsInput
     int64_t time;
     int phaseHintIdentifier;
     int algorithmIdentifier;
-}; 
+};
 
 void bindText(const std::string &text,
               const int index,
@@ -59,8 +59,8 @@ void bindText(const std::string &text,
     if (returnCode != SQLITE_OK)
     {
         sqlite3_finalize(statement);
-        throw std::runtime_error("Failed to bind " 
-                               + text + " to " 
+        throw std::runtime_error("Failed to bind "
+                               + text + " to "
                                + column + " " + table);
     }
 }
@@ -128,7 +128,7 @@ void bindInt64(const int64_t value,
 
 std::string removeBlanksAndCapitalize(const std::string &stringIn)
 {
-    auto string = stringIn; 
+    auto string = stringIn;
     std::erase_if(string, ::isspace);
     if (string.empty())
     {
@@ -140,12 +140,12 @@ std::string removeBlanksAndCapitalize(const std::string &stringIn)
 
 std::string removeBlanksAndLowerCase(const std::string &stringIn)
 {
-    auto string = stringIn; 
+    auto string = stringIn;
     std::erase_if(string, ::isspace);
     if (string.empty())
-    {   
+    {
         throw std::invalid_argument("Algorithm has empty field");
-    }   
+    }
     std::ranges::transform(string, string.begin(), ::tolower);
     return string;
 }
@@ -194,13 +194,13 @@ public:
                     if (!std::filesystem::exists(directory))
                     {
                         if (!std::filesystem::create_directories(directory))
-                        {   
+                        {
                             throw std::runtime_error(
                                 "Failed to create directory "
                                + std::string {directory});
-                        }   
-                    }   
-                }   
+                        }
+                    }
+                }
             }
             else // We're in read-write mode
             {
@@ -213,12 +213,12 @@ public:
                         if (!std::filesystem::exists(directory))
                         {
                             if (!std::filesystem::create_directories(directory))
-                            {   
+                            {
                                 throw std::runtime_error(
                                     "Failed to create directory for missing db "
                                    + std::string {directory});
-                            }   
-                        }   
+                            }
+                        }
                     }
                     SPDLOG_LOGGER_INFO(mLogger,
                                        "Will create missing database {}",
@@ -227,10 +227,9 @@ public:
             }
             openReadWrite(fileName, createDatabase);
         }
-        // Always initialize phase hints
         initializePhaseHintMap();
     }
-        
+
     void openReadOnly(const std::filesystem::path &fileName)
     {
         close();
@@ -242,7 +241,7 @@ public:
         }
         const char *vfs{nullptr};
         constexpr int flags{SQLITE_OPEN_READWRITE};
-        auto returnCode = sqlite3_open_v2(fileName.c_str(), 
+        auto returnCode = sqlite3_open_v2(fileName.c_str(),
                                           &mDatabaseHandle,
                                           flags,
                                           vfs);
@@ -277,7 +276,7 @@ public:
             mTablesInitialized = true;
         }
         const char *vfs{nullptr};
-        auto returnCode = sqlite3_open_v2(fileName.c_str(), 
+        auto returnCode = sqlite3_open_v2(fileName.c_str(),
                                           &mDatabaseHandle,
                                           flags,
                                           vfs);
@@ -341,12 +340,12 @@ CREATE TABLE phase_hints(
         auto returnCode = sqlite3_exec(mDatabaseHandle,
                                        phaseHintTable.c_str(),
                                        nullptr,
-                                       nullptr, 
+                                       nullptr,
                                        &errorMessage);
         if (returnCode != SQLITE_OK)
         {
-            auto message = std::string{errorMessage}; 
-            sqlite3_free(errorMessage); 
+            auto message = std::string{errorMessage};
+            sqlite3_free(errorMessage);
             throw std::runtime_error("Failed to create phasehint table because "
                                    + message);
         }
@@ -363,12 +362,12 @@ INSERT INTO phase_hints (phase)
         returnCode = sqlite3_exec(mDatabaseHandle,
                                   defaultPhases.c_str(),
                                   nullptr,
-                                  nullptr, 
+                                  nullptr,
                                   &errorMessage);
         if (returnCode != SQLITE_OK)
         {
-            auto message = std::string{errorMessage}; 
-            sqlite3_free(errorMessage); 
+            auto message = std::string{errorMessage};
+            sqlite3_free(errorMessage);
             throw std::runtime_error("Failed to create default phases because "
                                    + message);
         }
@@ -407,7 +406,7 @@ CREATE TABLE algorithms(
    UNIQUE(name, version, tag)
    );
 )"""
-        };  
+        };
         returnCode = sqlite3_exec(mDatabaseHandle,
                                   algorithmsTable.c_str(),
                                   nullptr,
@@ -426,7 +425,7 @@ CREATE TABLE algorithms(
 R"""(
 CREATE TABLE picks(
    stream INTEGER,
-   time INT8, 
+   time INT8,
    phase_hint INTEGER,
    algorithm INTEGER,
    proto BLOB NOT NULL,
@@ -440,12 +439,12 @@ CREATE TABLE picks(
         returnCode = sqlite3_exec(mDatabaseHandle,
                                        pickTable.c_str(),
                                        nullptr,
-                                       nullptr, 
+                                       nullptr,
                                        &errorMessage);
         if (returnCode != SQLITE_OK)
         {
-            auto message = std::string{errorMessage}; 
-            sqlite3_free(errorMessage); 
+            auto message = std::string{errorMessage};
+            sqlite3_free(errorMessage);
             throw std::runtime_error("Failed to create picks table because "
                                    + message);
         }
@@ -464,7 +463,7 @@ CREATE TABLE picks(
         if (identifier.has_location_code())
         {
             locationCode = ::removeBlanksAndCapitalize(identifier.location_code());
-        } 
+        }
         const auto name = network + "."
                         + station + "."
                         + channel + "."
@@ -487,7 +486,7 @@ INSERT INTO streams(network, station, channel, location_code)
         auto returnCode = sqlite3_prepare_v2(mDatabaseHandle,
                                              insertSQL.c_str(),
                                              -1,
-                                             &insertStatement, 
+                                             &insertStatement,
                                              nullptr);
         if (returnCode != SQLITE_OK)
         {
@@ -495,17 +494,11 @@ INSERT INTO streams(network, station, channel, location_code)
             throw std::runtime_error("Failed to prepare insert statement");
         }
 
-        ::bindText(network,      1, "network",
-                   "streams", insertStatement);
-        ::bindText(station,      2, "station",
-                   "streams", insertStatement);
-        ::bindText(channel,      3, "channel",
-                   "streams", insertStatement);
-        ::bindText(locationCode, 4, "location_code",
-                   "streams", insertStatement);
-        // Send it
+        ::bindText(network,      1, "network",       "streams", insertStatement);
+        ::bindText(station,      2, "station",       "streams", insertStatement);
+        ::bindText(channel,      3, "channel",       "streams", insertStatement);
+        ::bindText(locationCode, 4, "location_code", "streams", insertStatement);
         returnCode = sqlite3_step(insertStatement);
-        // Try to get the corresponding identifier
         if (returnCode == SQLITE_ROW)
         {
             streamIdentifier = sqlite3_column_int(insertStatement, 0);
@@ -518,7 +511,6 @@ INSERT INTO streams(network, station, channel, location_code)
             SPDLOG_LOGGER_WARN(mLogger,
                                "There exists more rows but terminating early");
         }
-        // Clean up
         if (sqlite3_finalize(insertStatement) != SQLITE_OK)
         {
             throw std::runtime_error("Failed to finalize insert statement");
@@ -531,7 +523,7 @@ INSERT INTO streams(network, station, channel, location_code)
     /// @result The algorithm identifier
     [[nodiscard]] int getAlgorithmIdentifier(
         const UFilterPickerMessageStoreAPI::V1::Algorithm &algorithm) const
-    {   
+    {
         int algorithmIdentifier{-1};
         const auto name = ::removeBlanksAndLowerCase(algorithm.name());
         const auto version = ::removeBlanksAndLowerCase(algorithm.version());
@@ -541,7 +533,7 @@ INSERT INTO streams(network, station, channel, location_code)
             tag = algorithm.tag();
             if (!tag.empty()){tag = ::removeBlanksAndLowerCase(tag);}
         }
-        const auto keyName = name + " " 
+        const auto keyName = name + " "
                            + version
                            + (!tag.empty() ? " " + tag : "");
         {
@@ -572,9 +564,7 @@ INSERT INTO algorithms(name, version, tag) VALUES(?, ?, ?) RETURNING identifier;
         ::bindText(name,    1, "name",    "algorithms", insertStatement);
         ::bindText(version, 2, "version", "algorithms", insertStatement);
         ::bindText(tag,     3, "tag",     "algorithms", insertStatement);
-        // Send it 
         returnCode = sqlite3_step(insertStatement);
-        // Try to get the corresponding identifier
         if (returnCode == SQLITE_ROW)
         {
             algorithmIdentifier = sqlite3_column_int(insertStatement, 0);
@@ -587,11 +577,10 @@ INSERT INTO algorithms(name, version, tag) VALUES(?, ?, ?) RETURNING identifier;
             SPDLOG_LOGGER_WARN(mLogger,
                                "There exists more rows but terminating early");
         }
-        // Clean up
         if (sqlite3_finalize(insertStatement) != SQLITE_OK)
-        {                      
+        {
             throw std::runtime_error("Failed to algorithm insert statement");
-        }   
+        }
         mAlgorithmIdentifiersMap.insert(
            std::pair{keyName, algorithmIdentifier});
         } // Release mutex
@@ -628,7 +617,6 @@ INSERT INTO algorithms(name, version, tag) VALUES(?, ?, ?) RETURNING identifier;
         return pickExists(input);
     }
 
-    /// @brief  @result True indicates the pick exists.
     [[nodiscard]] bool pickExists(const ::PickExistsInput &input) const
     {
         bool exists{false};
@@ -669,18 +657,16 @@ SELECT COUNT(*) FROM picks WHERE stream = ? AND time = ? AND phase_hint = ? AND 
         exists = sqlite3_column_int(queryStatement, 0) > 0 ? true : false;
         if (sqlite3_finalize(queryStatement) != SQLITE_OK)
         {
-            throw std::runtime_error("Failed to finalize pick exists query statement");   
+            throw std::runtime_error("Failed to finalize pick exists query statement");
         }
         } // End mutex scope
         return exists;
     }
 
-    /// @brief Attempts to add the pick to the database
     void add(const UFilterPickerMessageStoreAPI::V1::Pick &pick)
     {
         if (!isOpen()){throw std::runtime_error("Database not open");}
         if (isReadOnly()){throw std::runtime_error("Database is read-only");}
-        // Tabulate variables
         const auto streamIdentifier = getStreamIdentifier(pick.stream_identifier());
         if (streamIdentifier ==-1)
         {
@@ -698,9 +684,8 @@ SELECT COUNT(*) FROM picks WHERE stream = ? AND time = ? AND phase_hint = ? AND 
         std::string pickProto;
         if (!pick.SerializeToString(&pickProto))
         {
-            throw std::runtime_error("Failed to serialize pick proto"); 
-        } 
-        // Check if it already exists
+            throw std::runtime_error("Failed to serialize pick proto");
+        }
         const ::PickExistsInput phaseExistsInput
         {
             streamIdentifier,
@@ -712,21 +697,18 @@ SELECT COUNT(*) FROM picks WHERE stream = ? AND time = ? AND phase_hint = ? AND 
         {
             throw DuplicatePickException(
                 "Pick already exists in database for stream identifier "
-              + std::to_string(streamIdentifier) + " time " 
+              + std::to_string(streamIdentifier) + " time "
               + std::to_string(time) + " phase hint identifier "
               + std::to_string(phaseHintIdentifier) + " algorithm identifier "
               + std::to_string(algorithmIdentifier));
         }
-//ON CONFLICT DO NOTHING
         const std::string insertSQL{
 R"""(
 INSERT INTO picks(stream, time, phase_hint, algorithm, proto) VALUES(?, ?, ?, ?, ?);
 )"""
         };
-        // Insert it
         const std::lock_guard<std::mutex> lock(mMutex);
         {
-
         sqlite3_stmt *insertStatement{nullptr};
         auto returnCode = sqlite3_prepare_v2(mDatabaseHandle,
                                              insertSQL.c_str(),
@@ -738,39 +720,29 @@ INSERT INTO picks(stream, time, phase_hint, algorithm, proto) VALUES(?, ?, ?, ?,
           sqlite3_finalize(insertStatement);
           throw std::runtime_error("Failed to prepare pick insert statement");
         }
-        ::bindInt(streamIdentifier, 1,
-            "stream", "pick", insertStatement);
-        ::bindInt64(time, 2,
-            "time", "pick", insertStatement);
-        ::bindInt(phaseHintIdentifier, 3,
-            "phase_hint", "pick", insertStatement);
-        ::bindInt(algorithmIdentifier, 4,
-            "algorithm_identifier", "pick", insertStatement);
-        ::bindBlob(pickProto, 5,
-            "proto", "pick", insertStatement);
-        // Send it
+        ::bindInt(streamIdentifier,     1, "stream",     "pick", insertStatement);
+        ::bindInt64(time,               2, "time",       "pick", insertStatement);
+        ::bindInt(phaseHintIdentifier,  3, "phase_hint", "pick", insertStatement);
+        ::bindInt(algorithmIdentifier,  4, "algorithm",  "pick", insertStatement);
+        ::bindBlob(pickProto,           5, "proto",      "pick", insertStatement);
         returnCode = sqlite3_step(insertStatement);
         if (returnCode != SQLITE_DONE)
         {
             sqlite3_finalize(insertStatement);
             throw std::runtime_error("Failed to insert pick into database");
         }
-        // Clean up
         if (sqlite3_finalize(insertStatement) != SQLITE_OK)
         {
             throw std::runtime_error("Failed to finalize insert statement");
         }
-
         } // End mutex scope
     }
 
-    /// @result True indicates this is a read-only database
     [[nodiscard]] bool isReadOnly() const noexcept
     {
         return mMode == Database::Mode::ReadOnly;
     }
 
-    /// @result Gets the currently available streams
     [[nodiscard]] std::set<std::string> getStreams() const
     {
         std::set<std::string> result;
@@ -782,10 +754,9 @@ INSERT INTO picks(stream, time, phase_hint, algorithm, proto) VALUES(?, ?, ?, ?,
         }
         }
         return result;
-    } 
+    }
 
-    /// @Result Gets the phase hint identifier
-    [[nodiscard]] 
+    [[nodiscard]]
     int getPhaseHintIdentifier(
         const UFilterPickerMessageStoreAPI::V1::PhaseHint phaseHint) const
     {
@@ -805,20 +776,20 @@ INSERT INTO picks(stream, time, phase_hint, algorithm, proto) VALUES(?, ?, ?, ?,
         else
         {
             throw std::invalid_argument("Unhandled phase hint of type "
-                                      + std::to_string(phaseHint)); 
+                                      + std::to_string(phaseHint));
         }
     }
 
     void initializePhaseHintMap()
     {
-        if (!isOpen()){throw std::runtime_error("Database not open");} 
+        if (!isOpen()){throw std::runtime_error("Database not open");}
         const std::string phaseHintQuery{
             "SELECT identifier, phase FROM phase_hints"};
             sqlite3_stmt *statement{nullptr};
         {
         const std::lock_guard<std::mutex> lock(mMutex);
             auto returnCode
-            = sqlite3_prepare_v2(mDatabaseHandle, 
+            = sqlite3_prepare_v2(mDatabaseHandle,
                                  phaseHintQuery.c_str(),
                                  -1, &statement, nullptr);
         if (returnCode != SQLITE_OK)
@@ -836,7 +807,6 @@ INSERT INTO picks(stream, time, phase_hint, algorithm, proto) VALUES(?, ?, ?, ?,
                   };
             mPhaseHintMap.insert_or_assign(phaseName, identifier);
         }
-        // Clean up
         if (sqlite3_finalize(statement) != SQLITE_OK)
         {
             throw std::runtime_error("Failed to finalize insert statement");
@@ -848,7 +818,7 @@ INSERT INTO picks(stream, time, phase_hint, algorithm, proto) VALUES(?, ?, ?, ?,
         }
     }
 
-    [[nodiscard]] std::vector<UFilterPickerMessageStoreAPI::V1::Pick> 
+    [[nodiscard]] std::vector<UFilterPickerMessageStoreAPI::V1::Pick>
         getAllPicks() const
     {
         constexpr std::chrono::nanoseconds lowest{
@@ -857,7 +827,7 @@ INSERT INTO picks(stream, time, phase_hint, algorithm, proto) VALUES(?, ?, ?, ?,
         return getPicksSince(lowest);
     }
 
-    [[nodiscard]] std::vector<UFilterPickerMessageStoreAPI::V1::Pick> 
+    [[nodiscard]] std::vector<UFilterPickerMessageStoreAPI::V1::Pick>
         getPicksSince(const std::chrono::nanoseconds &startTime) const
     {
         if (!isOpen()){throw std::runtime_error("Database not open");}
@@ -871,7 +841,7 @@ SELECT proto FROM picks WHERE time > ? ORDER BY load_time ASC;
         {
         const std::lock_guard<std::mutex> lock(mMutex);
             auto returnCode
-            = sqlite3_prepare_v2(mDatabaseHandle, 
+            = sqlite3_prepare_v2(mDatabaseHandle,
                                  querySQL.c_str(),
                                  -1, &statement, nullptr);
         if (returnCode != SQLITE_OK)
@@ -880,7 +850,7 @@ SELECT proto FROM picks WHERE time > ? ORDER BY load_time ASC;
             throw std::runtime_error(
                 "Failed to prepare select picks statement");
         }
-        const auto startTimeNs 
+        const auto startTimeNs
             = std::chrono::duration_cast<std::chrono::nanoseconds>(startTime);
         ::bindInt64(startTimeNs.count(), 1, "start_time", "pick", statement);
         while (sqlite3_step(statement) != SQLITE_DONE)
@@ -900,9 +870,9 @@ SELECT proto FROM picks WHERE time > ? ORDER BY load_time ASC;
         sqlite3_finalize(statement);
         }
         return result;
-    }    
+    }
 
-    [[nodiscard]] std::vector<UFilterPickerMessageStoreAPI::V1::Pick> 
+    [[nodiscard]] std::vector<UFilterPickerMessageStoreAPI::V1::Pick>
         getMostRecentlySubmittedPicks(const int limit) const
     {
         if (!isOpen()){throw std::runtime_error("Database not open");}
@@ -916,7 +886,7 @@ SELECT proto FROM picks ORDER BY load_time DESC LIMIT ?;
         {
         const std::lock_guard<std::mutex> lock(mMutex);
             auto returnCode
-            = sqlite3_prepare_v2(mDatabaseHandle, 
+            = sqlite3_prepare_v2(mDatabaseHandle,
                                  querySQL.c_str(),
                                  -1, &statement, nullptr);
         if (returnCode != SQLITE_OK)
@@ -943,13 +913,13 @@ SELECT proto FROM picks ORDER BY load_time DESC LIMIT ?;
         sqlite3_finalize(statement);
         }
         return result;
-    }    
+    }
 
     [[nodiscard]] int deletePicksBefore(const std::chrono::nanoseconds &endTime)
     {
         int nDeleted{0};
         if (!isOpen()){throw std::runtime_error("Database not open");}
-        if (isReadOnly()){throw std::runtime_error("Databse is read-only");}
+        if (isReadOnly()){throw std::runtime_error("Database is read-only");}
         const std::string deleteSQL{
 R"""(
 DELETE FROM picks WHERE time < ?;
@@ -959,7 +929,7 @@ DELETE FROM picks WHERE time < ?;
         {
         const std::lock_guard<std::mutex> lock(mMutex);
             auto returnCode
-            = sqlite3_prepare_v2(mDatabaseHandle, 
+            = sqlite3_prepare_v2(mDatabaseHandle,
                                  deleteSQL.c_str(),
                                  -1, &statement, nullptr);
         if (returnCode != SQLITE_OK)
@@ -976,13 +946,12 @@ DELETE FROM picks WHERE time < ?;
         {
             SPDLOG_LOGGER_WARN(mLogger,
                                "Delete statement rc does not appear done");
-        } 
+        }
         nDeleted = sqlite3_changes(mDatabaseHandle);
         sqlite3_finalize(statement);
         }
         return nDeleted;
     }
-
 
     ~DatabaseImpl()
     {
@@ -996,7 +965,7 @@ DELETE FROM picks WHERE time < ?;
     std::map<std::string, int> mPhaseHintMap;
     mutable std::map<std::string, int> mAlgorithmIdentifiersMap;
     Database::Mode mMode{Database::Mode::ReadOnly};
-    bool mIsOpen{false}; 
+    bool mIsOpen{false};
     bool mTablesInitialized{false};
 };
 
@@ -1030,7 +999,7 @@ void Database::add(const UFilterPickerMessageStoreAPI::V1::Pick &pick)
     }
     const auto &streamIdentifier = pick.stream_identifier();
     if (!streamIdentifier.has_network())
-    { 
+    {
         throw std::invalid_argument("Network not set");
     }
     if (!streamIdentifier.has_station())
@@ -1061,7 +1030,6 @@ void Database::add(const UFilterPickerMessageStoreAPI::V1::Pick &pick)
     pImpl->add(pick);
 }
 
-/// All picks currently in the database.
 std::vector<UFilterPickerMessageStoreAPI::V1::Pick> Database::getAllPicks() const
 {
     if (!isOpen())
@@ -1071,7 +1039,6 @@ std::vector<UFilterPickerMessageStoreAPI::V1::Pick> Database::getAllPicks() cons
     return pImpl->getAllPicks();
 }
 
-/// The picks in the database whose time exceeds the given value.
 std::vector<UFilterPickerMessageStoreAPI::V1::Pick> Database::getPicksSince(
     const std::chrono::nanoseconds &startTime) const
 {
@@ -1082,11 +1049,9 @@ std::vector<UFilterPickerMessageStoreAPI::V1::Pick> Database::getPicksSince(
     return pImpl->getPicksSince(startTime);
 }
 
-/// Get the most recently submitted picks
-std::vector<UFilterPickerMessageStoreAPI::V1::Pick> 
+std::vector<UFilterPickerMessageStoreAPI::V1::Pick>
 Database::getMostRecentlySubmittedPicks(const int limit) const
 {
-
     if (limit < 0)
     {
         throw std::invalid_argument("Limit must be non-negative");
@@ -1099,35 +1064,31 @@ Database::getMostRecentlySubmittedPicks(const int limit) const
     {
         throw std::runtime_error("Database is not open");
     }
-    pImpl->getMostRecentlySubmittedPicks(limit);
+    return pImpl->getMostRecentlySubmittedPicks(limit);
 }
 
-std::vector<UFilterPickerMessageStoreAPI::V1::Pick> 
+std::vector<UFilterPickerMessageStoreAPI::V1::Pick>
 Database::getMostRecentlySubmittedPicks() const
 {
     return getMostRecentlySubmittedPicks(std::numeric_limits<int>::max());
 }
 
-
-/// Deletes picks from the database.
 int Database::deletePicksBefore(const std::chrono::nanoseconds &endTime)
 {
     if (!isOpen())
-    {    
+    {
         throw std::runtime_error("Database not open");
-    }    
+    }
     if (isReadOnly())
-    {    
-        throw std::invalid_argument("Cannot add pick to read-only database");
-    }    
+    {
+        throw std::invalid_argument("Cannot delete picks from read-only database");
+    }
     return pImpl->deletePicksBefore(endTime);
 }
 
-/// Close the database
 void Database::close()
 {
-    pImpl->close(); 
+    pImpl->close();
 }
 
-/// Destructor
 Database::~Database() = default;

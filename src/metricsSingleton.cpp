@@ -2,13 +2,13 @@
 #include <atomic>
 #include <mutex>
 #include <algorithm>
-#include "uFilterPickerMessageStore/metricsSingleton.hpp"
+#include "uFilterPickerPickBroker/metricsSingleton.hpp"
 
-using namespace UFilterPickerProxy;
+using namespace UFilterPickerPickBroker;
 
 
 MetricsSingleton &MetricsSingleton::getInstance()
-{   
+{
     std::mutex mutex;
     const std::scoped_lock lock{mutex};
     static MetricsSingleton instance;
@@ -21,13 +21,12 @@ void MetricsSingleton::resetCounters()
     mPicksReceivedCounter.store(0, std::memory_order_relaxed);
     mInvalidPicksReceivedCounter.store(0, std::memory_order_relaxed);
     mDuplicatePicksCounter.store(0, std::memory_order_relaxed);
-    mFrontendUtilization.store(0, std::memory_order_relaxed);
-    mBackendUtilization.store(0, std::memory_order_relaxed);
+    mPublishServiceUtilization.store(0, std::memory_order_relaxed);
+    mSubscribeServiceUtilization.store(0, std::memory_order_relaxed);
 }
 
 void MetricsSingleton::incrementOverflowInputPicksCounter()
 {
-    constexpr int64_t one{1};
     mOverflowInputPicksCounter.fetch_add(1, std::memory_order_relaxed);
 }
 
@@ -69,30 +68,29 @@ int64_t MetricsSingleton::getDupcliatePicksReceivedCount() const noexcept
     return mDuplicatePicksCounter.load(std::memory_order_relaxed);
 }
 
-void MetricsSingleton::updateFrontendUtilization(const double utilization)
+void MetricsSingleton::updatePublishServiceUtilization(const double utilization)
 {
-    mFrontendUtilization.store(std::min(std::max(0.0, utilization), 1.0),
-                               std::memory_order_relaxed);
+    mPublishServiceUtilization.store(std::min(std::max(0.0, utilization), 1.0),
+                                     std::memory_order_relaxed);
 }
 
-double MetricsSingleton::getFrontendUtilization() const noexcept
+double MetricsSingleton::getPublishServiceUtilization() const noexcept
 {
-    return mFrontendUtilization.load(std::memory_order_relaxed);
+    return mPublishServiceUtilization.load(std::memory_order_relaxed);
 }
 
-void MetricsSingleton::updateBackendUtilization(const double utilization)
+void MetricsSingleton::updateSubscribeServiceUtilization(const double utilization)
 {
-    mBackendUtilization.store(std::min(std::max(0.0, utilization), 1.0),
-                              std::memory_order_relaxed);
+    mSubscribeServiceUtilization.store(std::min(std::max(0.0, utilization), 1.0),
+                                       std::memory_order_relaxed);
 }
 
-double MetricsSingleton::getBackendUtilization() const noexcept
+double MetricsSingleton::getSubscribeServiceUtilization() const noexcept
 {
-    return mBackendUtilization.load(std::memory_order_relaxed);
+    return mSubscribeServiceUtilization.load(std::memory_order_relaxed);
 }
 
-void UFilterPickerProxy::initializeMetricsSingleton()
+void UFilterPickerPickBroker::initializeMetricsSingleton()
 {
     MetricsSingleton::getInstance();
 }
-

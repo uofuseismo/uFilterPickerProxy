@@ -1,9 +1,9 @@
 #include <utility>
 #include <memory>
 #include <stdexcept>
-#include "uFilterPickerMessageStore/pickStoreOptions.hpp"
+#include "uFilterPickerPickBroker/pickStoreOptions.hpp"
 
-using namespace UFilterPickerProxy;
+using namespace UFilterPickerPickBroker;
 
 class PickStoreOptions::PickStoreOptionsImpl
 {
@@ -52,7 +52,6 @@ PickStoreOptions &PickStoreOptions::operator=(
 /// Destructor
 PickStoreOptions::~PickStoreOptions() = default;
 
-/// Maximum queue size
 void PickStoreOptions::setMaximumQueueSize(const int maxSize)
 {
     if (maxSize < 1)

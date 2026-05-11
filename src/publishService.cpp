@@ -21,16 +21,16 @@
 #include <grpcpp/security/server_credentials.h>
 #include <grpcpp/support/status.h>
 #include <grpcpp/support/server_callback.h>
-#include "uFilterPickerMessageStore/exception.hpp"
-#include "uFilterPickerMessageStore/frontend.hpp"
-#include "uFilterPickerMessageStore/frontendOptions.hpp"
-#include "uFilterPickerMessageStore/grpcServerOptions.hpp"
-#include "uFilterPickerMessageStore/metricsSingleton.hpp"
+#include "uFilterPickerPickBroker/exception.hpp"
+#include "uFilterPickerPickBroker/publishService.hpp"
+#include "uFilterPickerPickBroker/publishServiceOptions.hpp"
+#include "uFilterPickerPickBroker/grpcServerOptions.hpp"
+#include "uFilterPickerPickBroker/metricsSingleton.hpp"
 #include "uFilterPickerMessageStoreAPI/v1/frontend.grpc.pb.h"
 #include "uFilterPickerMessageStoreAPI/v1/pick.pb.h"
 #include "uFilterPickerMessageStoreAPI/v1/publish_response.pb.h"
 
-using namespace UFilterPickerProxy;
+using namespace UFilterPickerPickBroker;
 
 namespace
 {
@@ -45,7 +45,7 @@ bool validatePublisher(const grpc::CallbackServerContext *context,
         if (item.first == "x-custom-auth-token")
         {
             if (item.second == accessToken)
-            {   
+            {
                 return true;
             }
         }
@@ -62,7 +62,7 @@ public:
     using PublishResponse = UFilterPickerMessageStoreAPI::V1::PublishResponse;
 
     AsynchronousReader(
-        const FrontendOptions &options,
+        const PublishServiceOptions &options,
         grpc::CallbackServerContext *context,
         const std::function<void (UFilterPickerMessageStoreAPI::V1::Pick &&)> &callback,
         PublishResponse *response,
@@ -70,7 +70,7 @@ public:
         std::atomic<int> *publisherCount,
         const bool isSecured,
         std::shared_ptr<spdlog::logger> logger)
-      : 
+      :
         mContext(context),
         mCallback(callback),
         mResponse(response),
@@ -86,7 +86,7 @@ public:
 #endif
         mPeer = context->peer();
         mMaximumNumberOfPublishers = options.getMaximumNumberOfPublishers();
-        mMaximumConsecutiveInvalidMessages 
+        mMaximumConsecutiveInvalidMessages
             = options.getMaximumConsecutiveInvalidMessages();
 
         if (mPublisherCount->load() >= mMaximumNumberOfPublishers)
@@ -112,15 +112,14 @@ public:
             }
         }
 
-        // Looks good to go
         const auto nPublishers = mPublisherCount->fetch_add(1) + 1;
         const auto utilization
             = static_cast<double> (nPublishers)
              /std::max(1, mMaximumNumberOfPublishers);
-        mMetrics.updateFrontendUtilization(utilization);
+        mMetrics.updatePublishServiceUtilization(utilization);
         mRegistered = true;
         SPDLOG_LOGGER_INFO(mLogger,
-            "Pick publisher connected {}; Frontend managing {} publishers ({} pct utilized)",
+            "Pick publisher connected {}; PublishService managing {} publishers ({} pct utilized)",
             mPeer,
             nPublishers,
             utilization);
@@ -129,7 +128,6 @@ public:
 
     void OnReadDone(bool ok) override
     {
-        // Handle errors
         if (!ok)
         {
             mResponse->set_total_picks(mTotalPicks);
@@ -138,7 +136,6 @@ public:
             Finish(grpc::Status::OK);
             return;
         }
-        // Handle normal case
         ++mTotalPicks;
         try
         {
@@ -152,7 +149,7 @@ public:
             if (mInvalidMessageCounter > mMaximumConsecutiveInvalidMessages)
             {
                 SPDLOG_LOGGER_WARN(mLogger,
-                    "Frontend disconnecting {} because it sent too many consecutive invalid messages",
+                    "PublishService disconnecting {} because it sent too many consecutive invalid messages",
                     mPeer);
                 const grpc::Status status{
                     grpc::StatusCode::INVALID_ARGUMENT,
@@ -171,14 +168,13 @@ public:
             SPDLOG_LOGGER_DEBUG(mLogger, "Rejected pick: {}", e.what());
             ++mRejectedPicks;
         }
-        // If server is still running then read another a packet
         if (mKeepRunning->load(std::memory_order_relaxed))
         {
             StartRead(&mCurrentPick);
         }
         else
         {
-            SPDLOG_LOGGER_DEBUG(mLogger, "Terminating frontend");
+            SPDLOG_LOGGER_DEBUG(mLogger, "Terminating publish service");
             const grpc::Status status{grpc::StatusCode::UNAVAILABLE,
                                       "Server shutdown - try again later"};
             Finish(status);
@@ -193,7 +189,7 @@ public:
             auto utilization
                 = static_cast<double> (nPublishers)
                  /std::max(1, mMaximumNumberOfPublishers);
-            mMetrics.updateFrontendUtilization(utilization);
+            mMetrics.updatePublishServiceUtilization(utilization);
             SPDLOG_LOGGER_DEBUG(mLogger,
                 "{} disconnected; Now managing {} publishers ({} pct utilized)",
                 mPeer,
@@ -203,13 +199,13 @@ public:
         delete this;
     }
 
-    void OnCancel() override 
+    void OnCancel() override
     {
         SPDLOG_LOGGER_INFO(mLogger,
-                           "Async pick proxy frontend RPC canceled by {}",
+                           "Async pick broker publish service RPC canceled by {}",
                            mPeer);
-        Finish(grpc::Status::CANCELLED);                    
-    }   
+        Finish(grpc::Status::CANCELLED);
+    }
 
 //private:
     grpc::CallbackServerContext *mContext{nullptr};
@@ -219,9 +215,9 @@ public:
     std::atomic<int> *mPublisherCount{nullptr};
     std::shared_ptr<spdlog::logger> mLogger;
     UFilterPickerMessageStoreAPI::V1::Pick mCurrentPick;
-    UFilterPickerProxy::MetricsSingleton &mMetrics
+    UFilterPickerPickBroker::MetricsSingleton &mMetrics
     {
-        UFilterPickerProxy::MetricsSingleton::getInstance()
+        UFilterPickerPickBroker::MetricsSingleton::getInstance()
     };
     std::string mPeer;
     uint64_t mTotalPicks{0};
@@ -236,13 +232,13 @@ public:
 
 }
 
-class Frontend::FrontendImpl :
-    public UFilterPickerMessageStoreAPI::V1::Frontend::CallbackService 
+class PublishService::PublishServiceImpl :
+    public UFilterPickerMessageStoreAPI::V1::Frontend::CallbackService
 {
 public:
-    FrontendImpl
+    PublishServiceImpl
     (
-        const FrontendOptions &options,
+        const PublishServiceOptions &options,
         const std::function<void (UFilterPickerMessageStoreAPI::V1::Pick &&)> &callback,
         std::shared_ptr<spdlog::logger> logger
     ) :
@@ -255,11 +251,11 @@ public:
             throw std::invalid_argument("GRPC server options not set");
         }
         if (mLogger == nullptr)
-        {   
+        {
             // NOLINTBEGIN(misc-include-cleaner)
             auto classId
                 = std::to_string (reinterpret_cast<std::uintptr_t> (this));
-            mLogger = spdlog::stdout_color_mt("ProxyFrontendConsole-"
+            mLogger = spdlog::stdout_color_mt("PublishServiceConsole-"
                                             + classId);
             // NOLINTEND(misc-include-cleaner)
         }
@@ -269,7 +265,7 @@ public:
     {
         mKeepRunning.store(true);
         mPublisherCount.store(0);
-        MetricsSingleton::getInstance().updateFrontendUtilization(0);
+        MetricsSingleton::getInstance().updatePublishServiceUtilization(0);
         const auto grpcOptions = mOptions.getGRPCOptions();
         const auto address = grpcOptions.getHost() + ":"
                            + std::to_string(grpcOptions.getPort());
@@ -283,9 +279,9 @@ public:
         }
         if (grpcOptions.getServerKey() == std::nullopt ||
             grpcOptions.getServerCertificate() == std::nullopt)
-        { 
+        {
             SPDLOG_LOGGER_INFO(mLogger,
-                               "Initiating non-secured proxy frontend");
+                               "Initiating non-secured publish service");
             builder.AddListeningPort(address,
                                      grpc::InsecureServerCredentials());
             mSecured = false;
@@ -298,13 +294,13 @@ public:
             assert(serverKey != std::nullopt);
             assert(serverCertificate != std::nullopt);
 #endif
-            SPDLOG_LOGGER_INFO(mLogger, "Initiating secured proxy frontend");
+            SPDLOG_LOGGER_INFO(mLogger, "Initiating secured publish service");
             const grpc::SslServerCredentialsOptions::PemKeyCertPair keyCertPair
             {
-                *serverKey,        // Private key
-                *serverCertificate // Public key (cert chain)
+                *serverKey,
+                *serverCertificate
             };
-            grpc::SslServerCredentialsOptions sslOptions; 
+            grpc::SslServerCredentialsOptions sslOptions;
             sslOptions.pem_key_cert_pairs.emplace_back(keyCertPair);
             builder.AddListeningPort(address,
                                      grpc::SslServerCredentials(sslOptions));
@@ -312,13 +308,13 @@ public:
         }
         builder.RegisterService(this);
         SPDLOG_LOGGER_INFO(mLogger,
-                           "Frontend listening at {}", address);
+                           "PublishService listening at {}", address);
         mServer = builder.BuildAndStart();
     }
 
     void stop()
     {
-        mKeepRunning.store(false); 
+        mKeepRunning.store(false);
         std::this_thread::sleep_for(std::chrono::milliseconds {10});
         if (mServer)
         {
@@ -327,32 +323,31 @@ public:
             SPDLOG_LOGGER_INFO(mLogger, "Server shut down");
         }
         mPublisherCount.store(0);
-        MetricsSingleton::getInstance().updateFrontendUtilization(0);
+        MetricsSingleton::getInstance().updatePublishServiceUtilization(0);
     }
 
-    /// The RPC
     grpc::ServerReadReactor<UFilterPickerMessageStoreAPI::V1::Pick>*
         Publish(grpc::CallbackServerContext* context,
                 UFilterPickerMessageStoreAPI::V1::PublishResponse *publishResponse) override
     {
         return new ::AsynchronousReader(
-            mOptions, 
+            mOptions,
             context,
             mCallback,
-            publishResponse, 
+            publishResponse,
             &mKeepRunning,
             &mPublisherCount,
             mSecured,
             mLogger);
     }
 
-    ~FrontendImpl() override
+    ~PublishServiceImpl() override
     {
         stop();
         std::this_thread::sleep_for(std::chrono::milliseconds {25});
     }
 //private:
-    FrontendOptions mOptions;
+    PublishServiceOptions mOptions;
     std::function<void (UFilterPickerMessageStoreAPI::V1::Pick &&)> mCallback;
     std::shared_ptr<spdlog::logger> mLogger{nullptr};
     std::unique_ptr<grpc::Server> mServer{nullptr};
@@ -362,27 +357,27 @@ public:
 };
 
 /// Constructor
-Frontend::Frontend(
-    const FrontendOptions &options,
+PublishService::PublishService(
+    const PublishServiceOptions &options,
     const std::function<void (UFilterPickerMessageStoreAPI::V1::Pick &&)> &callback,
     std::shared_ptr<spdlog::logger> logger) :
-    pImpl(std::make_unique<FrontendImpl> (options,
-                                          callback, 
-                                          std::move(logger)))
+    pImpl(std::make_unique<PublishServiceImpl> (options,
+                                                callback,
+                                                std::move(logger)))
 {
 }
 
-/// Start the frontend acquisition
-void Frontend::start()
+/// Start the publish service
+void PublishService::start()
 {
     pImpl->start();
 }
 
-/// Stop the frontend
-void Frontend::stop()
+/// Stop the publish service
+void PublishService::stop()
 {
     pImpl->stop();
 }
 
 /// Destructor
-Frontend::~Frontend() = default;
+PublishService::~PublishService() = default;

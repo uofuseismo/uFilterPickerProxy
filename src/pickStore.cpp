@@ -10,11 +10,11 @@
 #include <spdlog/logger.h>
 #include <spdlog/sinks/stdout_color_sinks.h> //NOLINT
 #include <mutex>
-#include "uFilterPickerMessageStore/pickStore.hpp"
-#include "uFilterPickerMessageStore/pickStoreOptions.hpp"
+#include "uFilterPickerPickBroker/pickStore.hpp"
+#include "uFilterPickerPickBroker/pickStoreOptions.hpp"
 #include "uFilterPickerMessageStoreAPI/v1/pick.pb.h"
 
-using namespace UFilterPickerProxy;
+using namespace UFilterPickerPickBroker;
 
 class PickStore::PickStoreImpl
 {
@@ -38,13 +38,10 @@ public:
     {
         unsubscribeAll();
     }
-    /// Purge all subscribers
     void unsubscribeAll()
     {
-
     }
 
-    /// Add a subscriber (if it doesn't exist)
     void subscribe(const uintptr_t contextAddress)
     {
         std::lock_guard lock(mMutex);
@@ -56,7 +53,6 @@ public:
         }
     }
 
-    /// Clean the pick deque
     void purgeOldPicks()
     {
         const auto now
@@ -68,7 +64,6 @@ public:
                                });
     }
 
-    /// Add a pick
     void enqueue(const std::chrono::nanoseconds &timeReceived,
                  UFilterPickerMessageStoreAPI::V1::Pick &&pick)
     {
@@ -86,19 +81,16 @@ public:
         }
         {
         const std::lock_guard lock(mMutex);
-        // A newly received pick is most common case (and it is sorted)
         if (timeReceived > mPickDeque.back().first)
         {
             mPickDeque.push_front( std::pair{timeReceived, std::move(pick)} );
             return;
         }
-        // Weird but easy
         if (timeReceived < mPickDeque.front().first)
         {
             mPickDeque.push_front( std::pair{timeReceived, std::move(pick)} );
             return;
         }
-        // General case is bad news
         mPickDeque.push_front( std::pair{timeReceived, std::move(pick)} );
         std::ranges::sort(mPickDeque, [](const auto &lhs, const auto &rhs)
                           {

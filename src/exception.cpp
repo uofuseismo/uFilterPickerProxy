@@ -1,15 +1,14 @@
 #include <string>
-#include "uFilterPickerMessageStore/exception.hpp"
+#include "uFilterPickerPickBroker/exception.hpp"
 
-using namespace UFilterPickerProxy;
+using namespace UFilterPickerPickBroker;
 
 DuplicatePickException::DuplicatePickException(const std::string &message) :
     mMessage(message)
-{   
+{
 }
 
 const char *DuplicatePickException::what() const noexcept
-{   
+{
    return mMessage.c_str();
-}   
-
+}
