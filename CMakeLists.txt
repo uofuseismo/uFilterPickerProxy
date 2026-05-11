@@ -92,8 +92,10 @@ set(PROTO_SRC
     uFilterPickerPickBrokerAPI/v1/phase_hint.proto
     uFilterPickerPickBrokerAPI/v1/pick.proto
     uFilterPickerPickBrokerAPI/v1/algorithm.proto
-    uFilterPickerPickBrokerAPI/v1/frontend.proto
+    uFilterPickerPickBrokerAPI/v1/publish_service.proto
     uFilterPickerPickBrokerAPI/v1/publish_response.proto
+    uFilterPickerPickBrokerAPI/v1/subscribe_service.proto
+    uFilterPickerPickBrokerAPI/v1/stream_since_request.proto
     )
 set(LIBRARY_HEADER_FILES
     include/uFilterPickerPickBroker/subscribeServiceOptions.hpp
