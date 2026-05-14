@@ -46,7 +46,7 @@ public:
     [[nodiscard]] std::optional<std::string> getAccessToken() const noexcept;
 
     /// @brief Sets the server certificate.
-    /// @param serverCertificate The server certificate to set.
+    /// @param serverCertificate  The server certificate to set.
     void setServerCertificate(const std::string &serverCertificate);
     /// @brief Gets the server certificate.
     /// @return The server certificate.  If this is not set, then std::nullopt is returned.
@@ -58,6 +58,13 @@ public:
     /// @brief Gets the server's private key.
     /// @return The server's private key.  If this is not set, then std::nullopt is returned.
     [[nodiscard]] std::optional<std::string> getServerKey() const noexcept;
+
+    /// @brief Sets the client certificate.
+    /// @param clientCertificate  The client certificate to set.
+    void setClientCertificate(const std::string &clientCertificate);
+    /// @brief Gets the client certificate.
+    /// @return The client certificate.  If this is not set, then std::nullopt is returned.
+    [[nodiscard]] std::optional<std::string> getClientCertificate() const noexcept;
 
     /// @brief Enables reflection.
     void enableReflection() noexcept;

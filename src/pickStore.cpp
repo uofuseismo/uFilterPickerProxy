@@ -1,15 +1,16 @@
 #include <cstdint>
-#include <queue>
 #include <deque>
-#include <utility>
 #include <map>
-#include <algorithm>
+#include <memory>
+#include <mutex>
+#include <utility>
+#include <vector>
 #include <chrono>
 #include <stdexcept>
+#include <algorithm>
 #include <spdlog/spdlog.h>
 #include <spdlog/logger.h>
 #include <spdlog/sinks/stdout_color_sinks.h> //NOLINT
-#include <mutex>
 #include "uFilterPickerPickBroker/pickStore.hpp"
 #include "uFilterPickerPickBroker/pickStoreOptions.hpp"
 #include "uFilterPickerPickBrokerAPI/v1/pick.pb.h"
@@ -23,97 +24,167 @@ public:
                   std::shared_ptr<spdlog::logger> logger) :
         mOptions(options),
         mLogger(std::move(logger))
+    {   
+        if (mLogger == nullptr)
+        {
+            // NOLINTBEGIN(misc-include-cleaner)
+            auto classId = std::to_string(reinterpret_cast<std::uintptr_t>(this));
+            mLogger = spdlog::stdout_color_mt("PickStoreConsole-" + classId);
+            // NOLINTEND(misc-include-cleaner)
+        }
+    } 
+
+    PickStoreImpl(const PickStoreOptions &options,
+                  std::vector
+                  <
+                     std::pair
+                     <
+                         std::chrono::nanoseconds,
+                         UFilterPickerPickBrokerAPI::V1::Pick
+                     >
+                  > &backfillPicks,
+                  std::shared_ptr<spdlog::logger> logger) :
+        mOptions(options),
+        mLogger(std::move(logger))
     {
         if (mLogger == nullptr)
         {
             // NOLINTBEGIN(misc-include-cleaner)
-            auto classId
-                = std::to_string (reinterpret_cast<std::uintptr_t> (this));
-            mLogger = spdlog::stdout_color_mt("PickStoreConsole-"
-                                            + classId);
+            auto classId = std::to_string(reinterpret_cast<std::uintptr_t>(this));
+            mLogger = spdlog::stdout_color_mt("PickStoreConsole-" + classId);
             // NOLINTEND(misc-include-cleaner)
         }
-    }
-    ~PickStoreImpl()
-    {
-        unsubscribeAll();
-    }
-    void unsubscribeAll()
-    {
+        for (auto &[t, p] : backfillPicks)
+        {   
+            mDeque.push_back({t, std::move(p)});
+        }
+        std::ranges::sort(mDeque, [](const auto &lhs, const auto &rhs)
+                         {
+                             return lhs.first < rhs.first;
+                         });
     }
 
     void subscribe(const uintptr_t contextAddress)
     {
-        std::lock_guard lock(mMutex);
-        if (!mSubscriberPickMap.contains(contextAddress))
-        {
-            auto newQueue = std::queue<UFilterPickerPickBrokerAPI::V1::Pick> ();
-            auto newElement = std::make_pair(contextAddress, std::move(newQueue));
-            mSubscriberPickMap.insert( std::move(newElement) );
-        }
+        const auto now
+            = std::chrono::high_resolution_clock::now().time_since_epoch();
+        const std::lock_guard lock(mMutex);
+        mCursorMap.insert_or_assign(contextAddress, now);
     }
 
-    void purgeOldPicks()
+    void subscribe(const uintptr_t contextAddress,
+                   const std::chrono::nanoseconds &startTime)
     {
         const auto now
             = std::chrono::high_resolution_clock::now().time_since_epoch();
-        const std::chrono::nanoseconds oldestTime = now - mMaxHistory;
-        std::ranges::remove_if(mPickDeque, [&](const auto &p)
-                               {
-                                   return p.first < oldestTime;
-                               });
-    }
-
-    void enqueue(const std::chrono::nanoseconds &timeReceived,
-                 UFilterPickerPickBrokerAPI::V1::Pick &&pick)
-    {
-        const auto now
-            = std::chrono::high_resolution_clock::now().time_since_epoch();
-        if (timeReceived > now)
+        if (startTime > now)
         {
-            throw std::invalid_argument("Cannot enqueue pick from future");
-        }
-        const std::chrono::nanoseconds oldestTime = now - mMaxHistory;
-        if (timeReceived < oldestTime)
-        {
-            SPDLOG_LOGGER_DEBUG(mLogger, "Cannot enqueue expired pick");
-            return;
+            throw std::invalid_argument("startTime cannot be in the future");
         }
         {
         const std::lock_guard lock(mMutex);
-        if (timeReceived > mPickDeque.back().first)
-        {
-            mPickDeque.push_front( std::pair{timeReceived, std::move(pick)} );
-            return;
+        mCursorMap.insert_or_assign(contextAddress, startTime);
         }
-        if (timeReceived < mPickDeque.front().first)
+    }
+
+    void unsubscribe(const uintptr_t contextAddress)
+    {
+        const std::lock_guard lock(mMutex);
+        mCursorMap.erase(contextAddress);
+    }
+
+    void enqueue(UFilterPickerPickBrokerAPI::V1::Pick &&pick)
+    {
+        const auto now = std::chrono::high_resolution_clock::now().time_since_epoch();
         {
-            mPickDeque.push_front( std::pair{timeReceived, std::move(pick)} );
-            return;
+        const std::lock_guard lock(mMutex);
+        purgeOldPicksLocked();
+        mDeque.push_back({now, std::move(pick)});
         }
-        mPickDeque.push_front( std::pair{timeReceived, std::move(pick)} );
-        std::ranges::sort(mPickDeque, [](const auto &lhs, const auto &rhs)
-                          {
-                              return lhs.first < rhs.first;
-                          });
-        } // End lock
+    }
+
+    [[nodiscard]] std::vector<UFilterPickerPickBrokerAPI::V1::Pick>
+    getPicks(const uintptr_t contextAddress) const
+    {
+        const std::lock_guard lock(mMutex);
+        auto it = mCursorMap.find(contextAddress);
+        if (it == mCursorMap.end()) { return {}; }
+        auto &cursor = it->second;
+        std::vector<UFilterPickerPickBrokerAPI::V1::Pick> result;
+        for (const auto &[t, p] : mDeque)
+        {
+            if (t > cursor) { result.push_back(p); }
+        }
+        if (!result.empty())
+        {
+            cursor = mDeque.back().first;
+        }
+        return result;
     }
 
 //private:
+    void purgeOldPicksLocked()
+    {
+        const auto now
+            = std::chrono::high_resolution_clock::now().time_since_epoch();
+        const auto oldestPickToKeep = now - mMaxHistory;
+        while (!mDeque.empty() && mDeque.front().first < oldestPickToKeep)
+        {
+            mDeque.pop_front();
+        }
+    }
+
     PickStoreOptions mOptions;
     std::shared_ptr<spdlog::logger> mLogger{nullptr};
-    std::map<uintptr_t, std::queue<UFilterPickerPickBrokerAPI::V1::Pick>> mSubscriberPickMap;
-    std::deque
-    <
-        std::pair
-        <
-            std::chrono::nanoseconds,
-            UFilterPickerPickBrokerAPI::V1::Pick
-        >
-    > mPickDeque;
-    std::mutex mMutex;
-    std::chrono::nanoseconds mMaxHistory{std::chrono::minutes {15}};
+    mutable std::map<uintptr_t, std::chrono::nanoseconds> mCursorMap;
+    std::deque<std::pair<std::chrono::nanoseconds,
+                         UFilterPickerPickBrokerAPI::V1::Pick>> mDeque;
+    mutable std::mutex mMutex;
+    const std::chrono::nanoseconds mMaxHistory{std::chrono::minutes{15}};
 };
 
-/// @brief Destructor.
+PickStore::PickStore(const PickStoreOptions &options,
+                     std::shared_ptr<spdlog::logger> logger) :
+    pImpl(std::make_unique<PickStoreImpl> (options,
+                                           std::move(logger)))
+{
+}
+
+PickStore::PickStore(const PickStoreOptions &options,
+                     std::vector<std::pair<std::chrono::nanoseconds,
+                                           UFilterPickerPickBrokerAPI::V1::Pick>> &backfillPicks,
+                     std::shared_ptr<spdlog::logger> logger) :
+    pImpl(std::make_unique<PickStoreImpl> (options, 
+                                           backfillPicks,
+                                           std::move(logger)))
+{
+}
+
+void PickStore::subscribe(const uintptr_t contextAddress,
+                          const std::chrono::nanoseconds &startTime)
+{
+    pImpl->subscribe(contextAddress, startTime);
+}
+
+void PickStore::subscribe(const uintptr_t contextAddress)
+{
+    pImpl->subscribe(contextAddress);
+}
+
+void PickStore::unsubscribe(const uintptr_t contextAddress)
+{
+    pImpl->unsubscribe(contextAddress);
+}
+
+void PickStore::enqueue(UFilterPickerPickBrokerAPI::V1::Pick &&pick)
+{
+    pImpl->enqueue(std::move(pick));
+}
+
+std::vector<UFilterPickerPickBrokerAPI::V1::Pick>
+PickStore::getPicks(const uintptr_t contextAddress) const
+{
+    return pImpl->getPicks(contextAddress);
+}
+
 PickStore::~PickStore() = default;

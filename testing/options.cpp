@@ -18,6 +18,7 @@ TEST_CASE("UFilterPickerPickBroker", "[grpcServerOptions]")
         REQUIRE(options.getAccessToken() == std::nullopt);
         REQUIRE(options.getServerCertificate() == std::nullopt);
         REQUIRE(options.getServerKey() == std::nullopt);
+        REQUIRE(options.getClientCertificate() == std::nullopt);
         REQUIRE(options.isReflectionEnabled() == false);
     }
 
@@ -27,6 +28,7 @@ TEST_CASE("UFilterPickerPickBroker", "[grpcServerOptions]")
         const std::string token{"super-secret-token"};
         const std::string serverCertificate{"some-wonky-hash"};
         const std::string serverKey{"some-private-wonky-hash"};
+        const std::string clientCertificate{"some-rad-hash"};
         constexpr uint16_t port{12345};
         UFilterPickerPickBroker::GRPCServerOptions options;
 
@@ -34,6 +36,7 @@ TEST_CASE("UFilterPickerPickBroker", "[grpcServerOptions]")
         options.setPort(port);
         options.setServerCertificate(serverCertificate);
         options.setServerKey(serverKey);
+        options.setClientCertificate(clientCertificate);
         options.setAccessToken(token);
         options.enableReflection();
 
@@ -43,9 +46,11 @@ TEST_CASE("UFilterPickerPickBroker", "[grpcServerOptions]")
         REQUIRE(copy.getPort() == port);
         REQUIRE(copy.getServerCertificate() != std::nullopt);
         REQUIRE(copy.getServerKey() != std::nullopt);
+        REQUIRE(copy.getClientCertificate() != std::nullopt);
         REQUIRE(copy.getAccessToken() != std::nullopt);
         REQUIRE(*copy.getServerCertificate() == serverCertificate); //NOLINT
         REQUIRE(*copy.getServerKey() == serverKey); //NOLINT
+        REQUIRE(*copy.getClientCertificate() == clientCertificate); //NOLINT
         REQUIRE(*copy.getAccessToken() == token); //NOLINT
         REQUIRE(copy.isReflectionEnabled() == true);
     }

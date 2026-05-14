@@ -16,6 +16,7 @@ public:
     std::optional<std::string> mAccessToken;
     std::optional<std::string> mServerCertificate;
     std::optional<std::string> mServerKey;
+    std::optional<std::string> mClientCertificate;
     bool mReflectionEnabled{false};
 };
 
@@ -77,7 +78,10 @@ uint16_t GRPCServerOptions::getPort() const noexcept
 
 void GRPCServerOptions::setAccessToken(const std::string &accessToken)
 {
-    if (accessToken.empty()){throw std::invalid_argument("Access token cannot be empty.");}
+    if (accessToken.empty())
+    {
+        throw std::invalid_argument("Access token cannot be empty.");
+    }
     pImpl->mAccessToken = std::optional<std::string> (accessToken);
 }
 
@@ -86,7 +90,8 @@ std::optional<std::string> GRPCServerOptions::getAccessToken() const noexcept
     return pImpl->mAccessToken;
 }
 
-void GRPCServerOptions::setServerCertificate(const std::string &serverCertificate)
+void GRPCServerOptions::setServerCertificate(
+    const std::string &serverCertificate)
 {
     if (serverCertificate.empty())
     {
@@ -95,7 +100,8 @@ void GRPCServerOptions::setServerCertificate(const std::string &serverCertificat
     pImpl->mServerCertificate = std::optional<std::string> (serverCertificate);
 }
 
-std::optional<std::string> GRPCServerOptions::getServerCertificate() const noexcept
+std::optional<std::string> 
+    GRPCServerOptions::getServerCertificate() const noexcept
 {
     return pImpl->mServerCertificate;
 }
@@ -112,6 +118,22 @@ void GRPCServerOptions::setServerKey(const std::string &serverKey)
 std::optional<std::string> GRPCServerOptions::getServerKey() const noexcept
 {
     return pImpl->mServerKey;
+}
+
+void GRPCServerOptions::setClientCertificate(
+    const std::string &clientCertificate)
+{
+    if (clientCertificate.empty())
+    {
+        throw std::invalid_argument("Client certificate cannot be empty.");
+    }
+    pImpl->mClientCertificate = std::optional<std::string> (clientCertificate);
+}
+
+std::optional<std::string> 
+    GRPCServerOptions::getClientCertificate() const noexcept
+{
+    return pImpl->mClientCertificate;
 }
 
 void GRPCServerOptions::enableReflection() noexcept

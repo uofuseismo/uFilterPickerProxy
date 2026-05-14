@@ -75,6 +75,7 @@ configure_file(${CMAKE_SOURCE_DIR}/src/version.hpp.in
                ${CMAKE_SOURCE_DIR}/include/uFilterPickerPickBroker/version.hpp)
 
 set(LIBRARY_SRC
+    src/subscribeService.cpp
     src/subscribeServiceOptions.cpp
     src/database.cpp
     src/exception.cpp
