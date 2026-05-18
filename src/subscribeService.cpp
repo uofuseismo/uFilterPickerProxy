@@ -1,6 +1,7 @@
 #include <atomic>
 #include <cstdint>
 #include <functional>
+#include <future>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -310,6 +311,7 @@ public:
         SPDLOG_LOGGER_INFO(mLogger,
                            "SubscribeService listening at {}", address);
         mServer = builder.BuildAndStart();
+        mServer->Wait();
     }
 
     void stop()
@@ -398,9 +400,9 @@ SubscribeService::SubscribeService(
 }
 
 /// Start the subscribe service
-void SubscribeService::start()
+std::future<void> SubscribeService::start()
 {
-    pImpl->start();
+    return std::async(&SubscribeServiceImpl::start, &*pImpl);
 }
 
 /// Enqueue a pick for delivery to all subscribers

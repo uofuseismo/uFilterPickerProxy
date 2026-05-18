@@ -3,6 +3,7 @@
 #include <spdlog/logger.h>
 #include <memory>
 #include <functional>
+#include <future>
 namespace UFilterPickerPickBrokerAPI::V1
 {
  class Pick;
@@ -30,7 +31,7 @@ public:
                    std::shared_ptr<spdlog::logger> logger);
 
     /// @brief Starts the publish service's pick acquisition.
-    void start();
+    std::future<void> start();
     /// @brief Stops the publish service and prevents the reading of picks.
     void stop();
 

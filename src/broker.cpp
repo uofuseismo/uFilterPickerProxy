@@ -181,7 +181,7 @@ public:
     }
 
     /// Start the broker
-    std::future<void> start()
+    void start()
     {
         if (mStarted)
         {
@@ -194,13 +194,12 @@ public:
 #endif
         mKeepRunning.store(true);
         // Start receiving things ASAP
-        mPublishService->start();
+        mPublishServiceFuture = mPublishService->start();
         // Get the propagator pick going
-        auto future = std::async(&BrokerImpl::processPick, this);
+        mPickProcessorFuture = std::async(&BrokerImpl::processPick, this);
         // Start broadcasting things
-        //mSubsribeService->start();
+        //mSubscribeServiceFuture = mSubsribeService->start();
         mStarted = true;
-        return future; 
     }
 
     /// Stop the broker
@@ -222,6 +221,65 @@ public:
         }
         mDatabase->close();
         mIsRunning.store(false);
+
+        if (mPublishServiceFuture.valid()){mPublishServiceFuture.get();}
+        if (mPickProcessorFuture.valid()){mPickProcessorFuture.get();}
+        if (mSubscribeServiceFuture.valid()){mSubscribeServiceFuture.get();}
+    }
+
+    [[nodiscard]] bool checkFuturesOkay(
+        const std::chrono::milliseconds &waitForFuture)
+    {
+        bool isOkay{true};
+/*
+        try
+        {
+            auto status = mSubscribeServiceFuture.wait_for(waitForFuture);
+            if (status == std::future_status::ready)
+            {
+                mSubscribeServiceFuture.get();
+            }
+        }
+        catch (const std::exception &e) 
+        {
+            SPDLOG_LOGGER_CRITICAL(mLogger,
+                                   "Fatal error in subscribe service: {}",
+                                   std::string {e.what()});
+            isOkay = false;
+        }
+*/
+        try
+        {
+            auto status = mPublishServiceFuture.wait_for(waitForFuture);
+            if (status == std::future_status::ready)
+            {
+                mPublishServiceFuture.get();
+            }
+        }   
+        catch (const std::exception &e) 
+        {   
+            SPDLOG_LOGGER_CRITICAL(mLogger,
+                                   "Fatal error in publish service: {}",
+                                   std::string {e.what()});
+            isOkay = false;
+        }
+        try
+        {
+            auto status = mPickProcessorFuture.wait_for(waitForFuture);
+            if (status == std::future_status::ready)
+            {
+                mPickProcessorFuture.get();
+            }
+        }
+        catch (const std::exception &e) 
+        {
+            SPDLOG_LOGGER_CRITICAL(mLogger,
+                                   "Fatal error in broker pick processor: {}",
+                                   std::string {e.what()});
+            isOkay = false;
+        }
+
+        return isOkay;
     }
 
     void processPick()
@@ -353,6 +411,9 @@ public:
     BrokerOptions mOptions;
     std::unique_ptr<Database> mDatabase{nullptr};
     std::shared_ptr<spdlog::logger> mLogger{nullptr};
+    std::future<void> mPublishServiceFuture;
+    std::future<void> mSubscribeServiceFuture;
+    std::future<void> mPickProcessorFuture;
     std::mutex mMutex;
     std::function<void(UFilterPickerPickBrokerAPI::V1::Pick &&)>
         mAddPickCallbackFunction
@@ -391,13 +452,13 @@ Broker::Broker(const BrokerOptions &options,
 Broker::~Broker() = default;
 
 /// Start the broker
-std::future<void> Broker::start()
+void Broker::start()
 {
     if (!isInitialized())
     {
         throw std::runtime_error("Broker not initialized");
     }
-    return pImpl->start(); 
+    pImpl->start(); 
 }
 
 /// Stop the broker
@@ -416,4 +477,10 @@ bool Broker::isRunning() const noexcept
 bool Broker::isInitialized() const noexcept
 {
     return pImpl->mInitialized;
+}
+
+/// Futures okay?
+bool Broker::checkFuturesOkay(const std::chrono::milliseconds &waitFor)
+{
+    return pImpl->checkFuturesOkay(waitFor);
 }

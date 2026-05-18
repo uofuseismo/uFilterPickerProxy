@@ -1,10 +1,11 @@
+#include <algorithm>
 #include <atomic>
 #include <cstdint>
 #include <utility>
 #include <memory>
 #include <functional>
+#include <future>
 #include <string>
-#include <algorithm>
 #include <optional>
 #include <exception>
 #include <thread>
@@ -21,6 +22,7 @@
 #include <grpcpp/security/server_credentials.h>
 #include <grpcpp/support/status.h>
 #include <grpcpp/support/server_callback.h>
+#include <grpcpp/support/time.h>
 #include "uFilterPickerPickBroker/exception.hpp"
 #include "uFilterPickerPickBroker/publishService.hpp"
 #include "uFilterPickerPickBroker/publishServiceOptions.hpp"
@@ -122,62 +124,86 @@ public:
             mPeer,
             nPublishers,
             utilization);
-        StartRead(&mCurrentPick);
-    }
-
-    void OnReadDone(bool ok) override
-    {
-        if (!ok)
-        {
-            mResponse->set_total_picks(mTotalPicks);
-            mResponse->set_picks_rejected(mRejectedPicks);
-            mResponse->set_duplicate_picks(mDuplicatePicks);
-            Finish(grpc::Status::OK);
-            return;
-        }
-        ++mTotalPicks;
-        try
-        {
-            mCallback(std::move(mCurrentPick));
-            mInvalidMessageCounter = 0;
-        }
-        catch (const std::invalid_argument &)
-        {
-            ++mInvalidMessageCounter;
-            ++mInvalidPicks;
-            if (mInvalidMessageCounter > mMaximumConsecutiveInvalidMessages)
-            {
-                SPDLOG_LOGGER_WARN(mLogger,
-                    "PublishService disconnecting {} because it sent too many consecutive invalid messages",
-                    mPeer);
-                const grpc::Status status{
-                    grpc::StatusCode::INVALID_ARGUMENT,
-                    "Too many consecutive messages were invalid - check API"};
-                Finish(status);
-                return;
-            }
-        }
-        catch (const DuplicatePickException &e)
-        {
-            //SPDLOG_LOGGER_DEBUG(mLogger, "Rejected pick because {}");
-            ++mRejectedPicks;
-            ++mDuplicatePicks;
-        }
-        catch (const std::exception &e)
-        {
-            SPDLOG_LOGGER_DEBUG(mLogger, "Rejected pick: {}", e.what());
-            ++mRejectedPicks;
-        }
-        if (mKeepRunning->load(std::memory_order_relaxed))
+        if (mKeepRunning->load())
         {
             StartRead(&mCurrentPick);
         }
         else
         {
-            SPDLOG_LOGGER_DEBUG(mLogger, "Terminating publish service");
-            const grpc::Status status{grpc::StatusCode::UNAVAILABLE,
+            Finish(grpc::Status::OK);
+        }
+    }
+
+    void OnReadDone(bool ok) override
+    {
+        if (ok)
+        {
+            ++mTotalPicks;
+            try
+            {
+                mCallback(std::move(mCurrentPick));
+                mInvalidMessageCounter = 0;
+            }
+            catch (const std::invalid_argument &)
+            {
+                ++mInvalidMessageCounter;
+                ++mInvalidPicks;
+                if (mInvalidMessageCounter > mMaximumConsecutiveInvalidMessages)
+                {
+                    SPDLOG_LOGGER_WARN(mLogger,
+                        "PublishService disconnecting {} because it sent too many consecutive invalid messages",
+                        mPeer);
+                    const grpc::Status status{
+                        grpc::StatusCode::INVALID_ARGUMENT,
+                      "Too many consecutive messages were invalid - check API"};
+                    Finish(status);
+                }
+            }
+            catch (const DuplicatePickException &e)
+            {
+                SPDLOG_LOGGER_DEBUG(mLogger, "Rejected pick because {}",
+                                    e.what());
+                ++mRejectedPicks;
+                ++mDuplicatePicks;
+            }
+            catch (const std::exception &e)
+            {
+                SPDLOG_LOGGER_DEBUG(mLogger, "Rejected pick: {}", e.what());
+                ++mRejectedPicks;
+            }
+            if (mKeepRunning->load(std::memory_order_relaxed))
+            {
+                StartRead(&mCurrentPick);
+            }
+            else
+            {
+                SPDLOG_LOGGER_DEBUG(mLogger, "Terminating publish service");
+                const grpc::Status status{grpc::StatusCode::UNAVAILABLE,
                                       "Server shutdown - try again later"};
-            Finish(status);
+                Finish(status);
+            }
+        }
+        else  // Not ok
+        {
+#ifndef NDEBUG
+            assert(mResponse != nullptr);
+#endif
+            mResponse->set_total_picks(mTotalPicks);
+            mResponse->set_picks_rejected(mRejectedPicks);
+            mResponse->set_duplicate_picks(mDuplicatePicks);
+            if (mKeepRunning->load(std::memory_order_relaxed))
+            {
+                Finish(grpc::Status::OK);
+            }
+            else
+            {
+                SPDLOG_LOGGER_DEBUG(mLogger,
+                                    "Terminating publish service for {}",
+                                    mPeer);
+                const grpc::Status status{grpc::StatusCode::UNAVAILABLE,
+                                      "Server shutdown - try again later"};
+                Finish(status);
+            }
         }
     }
 
@@ -208,10 +234,28 @@ public:
     // Note that we received a cancellation.
     void OnCancel() override
     {
-        SPDLOG_LOGGER_INFO(mLogger,
-                         "Async pick broker publish service RPC canceled by {}",
-                          mPeer);
+        if (mKeepRunning->load())
+        {
+            SPDLOG_LOGGER_INFO(mLogger,
+                               "Async pick broker publish service RPC canceled by {}",
+                               mPeer);
+        }
+        else
+        {
+            SPDLOG_LOGGER_INFO(mLogger,
+                               "Initiating server-side cancel");
+        }
     }
+
+#ifndef NDEBUG
+    ~AsynchronousReader()
+    {   
+        if (mLogger)
+        {
+            SPDLOG_LOGGER_DEBUG(mLogger, "In async pick reader destructor");
+        }
+    }   
+#endif
 
 //private:
     grpc::CallbackServerContext *mContext{nullptr};
@@ -316,6 +360,7 @@ public:
         SPDLOG_LOGGER_INFO(mLogger,
                            "PublishService listening at {}", address);
         mServer = builder.BuildAndStart();
+        mServer->Wait();
     }
 
     void stop()
@@ -325,8 +370,15 @@ public:
         if (mServer)
         {
             SPDLOG_LOGGER_INFO(mLogger, "Shutting down server");
-            mServer->Shutdown();
+            constexpr int64_t timeOutSeconds{2};
+            constexpr int64_t timeOutNanoSeconds{0};
+            const gpr_timespec deadline
+            {
+                timeOutSeconds, timeOutNanoSeconds, GPR_TIMESPAN
+            };
+            mServer->Shutdown(deadline);
             SPDLOG_LOGGER_INFO(mLogger, "Server shut down");
+            mServer = nullptr;
         }
         mPublisherCount.store(0);
         MetricsSingleton::getInstance().updatePublishServiceUtilization(0);
@@ -374,9 +426,9 @@ PublishService::PublishService(
 }
 
 /// Start the publish service
-void PublishService::start()
+std::future<void> PublishService::start()
 {
-    pImpl->start();
+    return std::async(&PublishServiceImpl::start, &*pImpl);
 }
 
 /// Stop the publish service

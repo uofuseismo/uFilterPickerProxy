@@ -81,7 +81,7 @@ public:
             stop();
         }
         mIsRunning = true;
-        mBrokerFuture = mBroker->start();
+        mBroker->start();
         handleMainThread();
     }
 
@@ -92,7 +92,7 @@ public:
             mIsRunning = false;
         }
         if (mBroker){mBroker->stop();}
-        if (mBrokerFuture.valid()){mBrokerFuture.get();}
+        //if (mBrokerFuture.valid()){mBrokerFuture.get();}
     }
 
     void printSummary()
@@ -102,6 +102,11 @@ public:
     [[nodiscard]] bool checkFuturesOkay(const std::chrono::milliseconds &waitForFuture)
     {
         bool isOkay{true};
+        if (mBroker)
+        {
+            isOkay = mBroker->checkFuturesOkay(waitForFuture);
+        }
+/*
         try
         {
             auto status = mBrokerFuture.wait_for(waitForFuture);
@@ -117,6 +122,7 @@ public:
                                    std::string {e.what()});
             isOkay = false;
         }
+*/
         return isOkay;
     }
 
@@ -181,7 +187,6 @@ public:
     std::unique_ptr<UFilterPickerPickBroker::Broker> mBroker{nullptr};
     mutable std::mutex mStopMutex;
     std::condition_variable mStopCondition;
-    std::future<void> mBrokerFuture;
     bool mStopRequested{false};
     bool mIsRunning{false};
 };

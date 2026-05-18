@@ -1,5 +1,6 @@
 #ifndef UFILTER_PICKER_PICK_BROKER_BROKER_HPP
 #define UFILTER_PICKER_PICK_BROKER_BROKER_HPP
+#include <chrono>
 #include <future>
 #include <memory>
 #include <spdlog/logger.h>
@@ -31,7 +32,11 @@ public:
     [[nodiscard]] bool isInitialized() const noexcept;
 
     /// @brief Starts the broker.
-    std::future<void> start();
+    void start();
+
+    /// @result True indicates that no threads have thrown.
+    [[nodiscard]] bool checkFuturesOkay(
+         const std::chrono::milliseconds &waitForFutures = std::chrono::milliseconds {10});
 
     /// @result True indicates the broker is running.
     [[nodiscard]] bool isRunning() const noexcept;

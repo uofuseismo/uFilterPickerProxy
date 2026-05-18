@@ -3,6 +3,7 @@
 #include <spdlog/logger.h>
 #include <memory>
 #include <functional>
+#include <future>
 namespace UFilterPickerPickBrokerAPI::V1
 {
  class Pick;
@@ -32,7 +33,7 @@ public:
                      std::shared_ptr<spdlog::logger> logger);
 
     /// @brief Starts the subscribe service's pick publishing.
-    void start();
+    std::future<void> start();
 
     /// @brief Enqueues a pick to be written to consumers.
     void enqueue(UFilterPickerPickBrokerAPI::V1::Pick &&pick);
