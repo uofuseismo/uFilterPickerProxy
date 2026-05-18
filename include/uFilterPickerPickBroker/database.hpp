@@ -46,8 +46,14 @@ public:
     [[nodiscard]] std::vector<UFilterPickerPickBrokerAPI::V1::Pick> getMostRecentlySubmittedPicks() const;
     [[nodiscard]] std::vector<UFilterPickerPickBrokerAPI::V1::Pick> getMostRecentlySubmittedPicks(int limit) const;
     /// @brief Deletes picks before a given time.
+    /// @param[in] time   Picks before this time will be deleted.
+    /// @param[in] useLoadTime  If true then picks loaded (received) before
+    ///                         this time will be deleted.
+    ///                         Otherwise, picks whose time before this time
+    ///                         will be deleted.
     /// @result The number of picks deleted.
-    [[nodiscard]] int deletePicksBefore(const std::chrono::nanoseconds &endTime);
+    [[nodiscard]] int deletePicksBefore(const std::chrono::nanoseconds &time,
+                                        const bool useLoadTime);
 
     /// @brief Close the database.
     void close();

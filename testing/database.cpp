@@ -103,8 +103,9 @@ TEST_CASE("UFilterPickerPickBroker", "[Database]")
         auto allPicks = db.getAllPicks();
         REQUIRE(allPicks.size() == 1);
         REQUIRE(::comparePicks(allPicks.at(0), pick) == true);
-        REQUIRE(db.deletePicksBefore(pickTime + std::chrono::seconds {0}) == 0);
-        REQUIRE(db.deletePicksBefore(pickTime + std::chrono::seconds {1}) == 1);
+        constexpr bool useLoadTime{false};
+        REQUIRE(db.deletePicksBefore(pickTime + std::chrono::seconds {0}, useLoadTime) == 0);
+        REQUIRE(db.deletePicksBefore(pickTime + std::chrono::seconds {1}, useLoadTime) == 1);
     }
 
 }

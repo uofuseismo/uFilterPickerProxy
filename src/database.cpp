@@ -919,16 +919,24 @@ SELECT proto FROM picks ORDER BY load_time DESC LIMIT ?;
         return result;
     }
 
-    [[nodiscard]] int deletePicksBefore(const std::chrono::nanoseconds &endTime)
+    [[nodiscard]] int deletePicksBefore(const std::chrono::nanoseconds &endTime,
+                                        const bool useLoadTime)
     {
         int nDeleted{0};
         if (!isOpen()){throw std::runtime_error("Database not open");}
         if (isReadOnly()){throw std::runtime_error("Database is read-only");}
-        const std::string deleteSQL{
+        std::string deleteSQL{
 R"""(
 DELETE FROM picks WHERE time < ?;
 )"""
         };
+        if (useLoadTime)
+        {
+            deleteSQL = 
+R"""(
+DELETE FROM picks WHERE load_time < ?;
+)""";
+        }
         sqlite3_stmt *statement{nullptr};
         {
         const std::lock_guard<std::mutex> lock(mMutex);
@@ -1077,7 +1085,8 @@ Database::getMostRecentlySubmittedPicks() const
     return getMostRecentlySubmittedPicks(std::numeric_limits<int>::max());
 }
 
-int Database::deletePicksBefore(const std::chrono::nanoseconds &endTime)
+int Database::deletePicksBefore(const std::chrono::nanoseconds &endTime,
+                                const bool useLoadTime)
 {
     if (!isOpen())
     {
@@ -1087,7 +1096,7 @@ int Database::deletePicksBefore(const std::chrono::nanoseconds &endTime)
     {
         throw std::invalid_argument("Cannot delete picks from read-only database");
     }
-    return pImpl->deletePicksBefore(endTime);
+    return pImpl->deletePicksBefore(endTime, useLoadTime);
 }
 
 void Database::close()

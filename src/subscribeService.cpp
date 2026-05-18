@@ -109,7 +109,8 @@ public:
             }
         }
 
-        const auto now = std::chrono::high_resolution_clock::now().time_since_epoch();
+        const auto now
+            = std::chrono::high_resolution_clock::now().time_since_epoch();
         if (request->has_backfill_duration())
         {
             const auto &dur = request->backfill_duration();

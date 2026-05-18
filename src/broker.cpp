@@ -197,6 +197,8 @@ public:
         mPublishServiceFuture = mPublishService->start();
         // Get the propagator pick going
         mPickProcessorFuture = std::async(&BrokerImpl::processPick, this);
+        // Make a thread to clean the database
+        mDatabaseCleanerFuture = std::async(&BrokerImpl::cleanDatabase, this);
         // Start broadcasting things
         //mSubscribeServiceFuture = mSubsribeService->start();
         mStarted = true;
@@ -221,10 +223,13 @@ public:
         }
         mDatabase->close();
         mIsRunning.store(false);
+        mShutdownRequested = true;
+        mShutdownCondition.notify_all();
 
         if (mPublishServiceFuture.valid()){mPublishServiceFuture.get();}
         if (mPickProcessorFuture.valid()){mPickProcessorFuture.get();}
         if (mSubscribeServiceFuture.valid()){mSubscribeServiceFuture.get();}
+        if (mDatabaseCleanerFuture.valid()){mDatabaseCleanerFuture.get();}
     }
 
     [[nodiscard]] bool checkFuturesOkay(
@@ -263,6 +268,7 @@ public:
                                    std::string {e.what()});
             isOkay = false;
         }
+
         try
         {
             auto status = mPickProcessorFuture.wait_for(waitForFuture);
@@ -279,6 +285,21 @@ public:
             isOkay = false;
         }
 
+        try
+        {
+            auto status = mDatabaseCleanerFuture.wait_for(waitForFuture);
+            if (status == std::future_status::ready)
+            {
+                mDatabaseCleanerFuture.get();
+            }
+        }
+        catch (const std::exception &e) 
+        {
+            SPDLOG_LOGGER_CRITICAL(mLogger,
+                                   "Fatal error in database cleaner: {}",
+                                   std::string {e.what()});
+            isOkay = false;
+        }
         return isOkay;
     }
 
@@ -299,6 +320,7 @@ public:
             }
             if (gotPick)
             {
+SPDLOG_LOGGER_INFO(mLogger, "REceived pick!");
                 bool enqueuePick{false};
                 try
                 {
@@ -349,7 +371,23 @@ public:
         {
             if (mDatabase->isOpen())
             {
-                //mDatabase->deletePicksBefore();
+                constexpr bool useLoadTime{true};
+                const auto now
+                    = std::chrono::high_resolution_clock::now()
+                      .time_since_epoch();
+                const std::chrono::nanoseconds oldestLoadTime
+                    = std::chrono::nanoseconds (now)
+                    - std::chrono::minutes {30};
+                auto nDeleted 
+                    = mDatabase->deletePicksBefore(oldestLoadTime, useLoadTime);
+                if (nDeleted > 0)
+                {
+                    SPDLOG_LOGGER_INFO(mLogger, "Deleted {} picks", nDeleted);
+                }
+                else
+                {
+                    SPDLOG_LOGGER_DEBUG(mLogger, "No picks to delete");
+                }
             }
             std::unique_lock<std::mutex> lock(mShutdownMutex);
             mShutdownCondition.wait_for(lock, cleanEvery,
@@ -414,6 +452,7 @@ public:
     std::future<void> mPublishServiceFuture;
     std::future<void> mSubscribeServiceFuture;
     std::future<void> mPickProcessorFuture;
+    std::future<void> mDatabaseCleanerFuture;
     std::mutex mMutex;
     std::function<void(UFilterPickerPickBrokerAPI::V1::Pick &&)>
         mAddPickCallbackFunction
