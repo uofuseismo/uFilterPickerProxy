@@ -231,7 +231,7 @@ public:
             }
             openReadWrite(fileName, createDatabase);
         }
-        initializePhaseHintMap();
+        initializePhaseHintMapFromDatabase();
     }
 
     void openReadOnly(const std::filesystem::path &fileName)
@@ -301,6 +301,11 @@ public:
         if (createDatabase)
         {
             create();
+        }
+        else
+        {
+            initializePhaseHintMapFromDatabase();
+            initializeStreamIdentifiersFromDatabase();
         }
     }
 
@@ -455,6 +460,47 @@ CREATE TABLE picks(
         mTablesInitialized = true;
     }
 
+    /// @brief Populates the stream identifiers on restore
+    void initializeStreamIdentifiersFromDatabase()
+    {
+        if (!isOpen()){throw std::runtime_error("Database not open");}
+        const std::string streamsQuery{
+R"""(
+SELECT identifier, network, station, channel, location_code FROM streams;
+)"""
+        };
+        { 
+        const std::lock_guard<std::mutex> lock(mMutex);
+        sqlite3_stmt *statement{nullptr};
+        auto returnCode
+            = sqlite3_prepare_v2(mDatabaseHandle,
+                                 streamsQuery.c_str(),
+                                 -1, &statement, nullptr);
+        if (returnCode != SQLITE_OK)         
+        {
+            sqlite3_finalize(statement);
+            throw std::runtime_error("Failed to prepare select statement");
+        }
+        while (sqlite3_step(statement) != SQLITE_DONE)
+        {
+            auto identifier = sqlite3_column_int(statement, 0);
+            const std::string network(reinterpret_cast<const char *> (sqlite3_column_text(statement, 1)));
+            const std::string station(reinterpret_cast<const char *> (sqlite3_column_text(statement, 2)));
+            const std::string channel(reinterpret_cast<const char *> (sqlite3_column_text(statement, 3)));
+            const std::string locationCode(reinterpret_cast<const char *> (sqlite3_column_text(statement, 4)));
+            const auto name = network + "."
+                            + station + "."
+                            + channel + "."
+                            + locationCode;
+            mStreamIdentifiersMap.insert_or_assign(name, identifier);
+        }
+        if (sqlite3_finalize(statement) != SQLITE_OK)
+        {
+            throw std::runtime_error("Failed to finalize insert statement");
+        }
+        }
+    }
+
     /// @result The stream identifier
     [[nodiscard]] int getStreamIdentifier(
         const UFilterPickerPickBrokerAPI::V1::StreamIdentifier &identifier) const
@@ -466,7 +512,11 @@ CREATE TABLE picks(
         std::string locationCode{"--"};
         if (identifier.has_location_code())
         {
-            locationCode = ::removeBlanksAndCapitalize(identifier.location_code());
+            if (!identifier.location_code().empty())
+            {
+                locationCode
+                    = ::removeBlanksAndCapitalize(identifier.location_code());
+            }
         }
         const auto name = network + "."
                         + station + "."
@@ -784,7 +834,7 @@ INSERT INTO picks(stream, time, phase_hint, algorithm, proto) VALUES(?, ?, ?, ?,
         }
     }
 
-    void initializePhaseHintMap()
+    void initializePhaseHintMapFromDatabase()
     {
         if (!isOpen()){throw std::runtime_error("Database not open");}
         const std::string phaseHintQuery{
@@ -1105,3 +1155,8 @@ void Database::close()
 }
 
 Database::~Database() = default;
+
+std::set<std::string> Database::getStreams() const
+{
+    return pImpl->getStreams();
+}

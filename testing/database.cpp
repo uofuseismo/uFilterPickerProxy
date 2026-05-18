@@ -7,6 +7,7 @@
 #include <cmath>
 #include <vector>
 #include <numeric>
+#include <set>
 #include <string>
 #include <chrono>
 #ifndef NDEBUG
@@ -59,11 +60,12 @@ bool comparePicks(const auto &lhs, const auto &rhs)
     return true;
 }
 
-bool contains(const auto &pick, const std::vector<UFilterPickerPickBrokerAPI::V1::Pick> &vector)
+bool contains(const auto &pick,
+              const std::vector<UFilterPickerPickBrokerAPI::V1::Pick> &vector)
 {
     for (const auto &item : vector)
     {
-        if (comparePicks(item, pick)){return true;}
+        if (::comparePicks(item, pick)){return true;}
     }
     return false;
 }
@@ -149,9 +151,13 @@ TEST_CASE("UFilterPickerPickBroker", "[Database]")
         REQUIRE_NOTHROW(db.add(pick1));
         REQUIRE_THROWS_AS(db.add(pick1), UFilterPickerPickBroker::DuplicatePickException);
 
-        identifier = ::createIdentifier(network, station2, channel, locationCode);
+        identifier = ::createIdentifier(network, station2, channel, "");//locationCode);
         auto pick2 = ::createPick(pickTime, identifier, algorithm, phaseHint);
         REQUIRE_NOTHROW(db.add(pick2));
+
+        auto allStreams = db.getStreams();
+        REQUIRE(allStreams.contains("UU.KNB.HHZ.01") == true);
+        REQUIRE(allStreams.contains("UU.PCCW.HHZ.--") == true);
 
         auto allPicks = db.getAllPicks();
         REQUIRE(allPicks.size() == 2); 
@@ -163,3 +169,56 @@ TEST_CASE("UFilterPickerPickBroker", "[Database]")
         REQUIRE(db.deletePicksBefore(pickTime + std::chrono::seconds {1}, useLoadTime) == 2); 
     }
 }
+
+TEST_CASE("UFilterPickerPickBroker", "[DatabaseRestore]")
+{       
+    namespace UFP = UFilterPickerPickBroker;
+    auto logger = spdlog::stdout_color_mt("create-db-restore-logger-1"); // NOLINT
+    const std::filesystem::path sqliteFile{"testFileRestore.sqlite3"};
+    if (std::filesystem::exists(sqliteFile)){std::filesystem::remove(sqliteFile);}
+    UFP::Database db{sqliteFile, UFP::Database::Mode::Create, logger};
+    REQUIRE(db.isOpen());
+    REQUIRE(!db.isReadOnly());
+
+    const std::string network{"UU"};
+    const std::string station1{"KNB"};
+    const std::string station2{"PCCW"};
+    const std::string channel{"HHZ"};
+    const std::string locationCode{"01"};
+    const std::string algorithmName{"ufp-test-restore"};
+    const std::string algorithmVersion{"0.1.0"};
+    const std::string algorithmTag{"322389ds"};
+    const std::chrono::seconds pickTime{1777408746};
+    const auto phaseHint{UFilterPickerPickBrokerAPI::V1::PhaseHint::PHASE_HINT_P};
+    auto identifier = ::createIdentifier(network, station1, channel, locationCode);
+    auto algorithm = ::createAlgorithm(algorithmName, algorithmVersion, algorithmTag);
+    auto pick1 = ::createPick(pickTime, identifier, algorithm, phaseHint);
+
+    REQUIRE_NOTHROW(db.add(pick1));
+    REQUIRE_THROWS_AS(db.add(pick1), UFilterPickerPickBroker::DuplicatePickException);
+
+    identifier = ::createIdentifier(network, station2, channel, "");//locationCode);
+    auto pick2 = ::createPick(pickTime, identifier, algorithm, phaseHint);
+    REQUIRE_NOTHROW(db.add(pick2));
+    db.close();
+ 
+    SECTION("Restore")
+    {
+        auto loggerRestore = spdlog::stdout_color_mt("create-db-restore-logger-2"); // NOLINT
+        UFP::Database dbr{sqliteFile, UFP::Database::Mode::ReadWrite, loggerRestore};
+        REQUIRE(dbr.isOpen());
+        REQUIRE(!dbr.isReadOnly());
+
+        auto allStreams = dbr.getStreams();
+        REQUIRE(allStreams.contains("UU.KNB.HHZ.01") == true);
+        REQUIRE(allStreams.contains("UU.PCCW.HHZ.--") == true);
+
+        auto allPicks = dbr.getAllPicks();
+        REQUIRE(allPicks.size() == 2); 
+        REQUIRE(::contains(pick1, allPicks) == true);
+        REQUIRE(::contains(pick2, allPicks) == true);
+
+        std::filesystem::remove(sqliteFile);
+    }
+}
+

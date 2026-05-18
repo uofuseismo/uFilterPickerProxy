@@ -3,6 +3,8 @@
 #include <memory>
 #include <filesystem>
 #include <chrono>
+#include <set>
+#include <string>
 #include <vector>
 #include <spdlog/logger.h>
 namespace UFilterPickerPickBrokerAPI::V1
@@ -45,6 +47,8 @@ public:
     [[nodiscard]] std::vector<UFilterPickerPickBrokerAPI::V1::Pick> getPicksSince(
         const std::chrono::nanoseconds &startTime) const;
 
+    /// @result The currently available streams.
+    [[nodiscard]] std::set<std::string> getStreams() const;
     /// @result Gets the most recently submitted picks.
     [[nodiscard]] std::vector<UFilterPickerPickBrokerAPI::V1::Pick> getMostRecentlySubmittedPicks() const;
     /// @result Gets the most limit-most recently submitted picks.

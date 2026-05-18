@@ -439,6 +439,7 @@ SPDLOG_LOGGER_INFO(mLogger, "REceived pick!");
             mInputQueue.pop();
         }
         mInputQueue.push(std::move(pick));
+std::cout << mInputQueue.size() << std::endl;
         }
     }
 
